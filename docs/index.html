@@ -182,7 +182,10 @@ html.escritorio body > *:not(#esc):not(script) { display: none !important; }
 #esc .ctxt { position: absolute; left: 5.6%; width: 88.4%; top: 29.6%; height: 59.2%; display: grid; place-items: center; font-family: var(--f-display); font-size: clamp(8px, 0.72vw, 14px); color: #f0e4cb; white-space: nowrap; text-align: center; }
 #esc .reloj { background-size: 100% 100%; background-repeat: no-repeat; display: grid; place-items: center; }
 #esc .hora { font-family: var(--f-body); font-size: clamp(11px, 1.2vw, 22px); color: #5ed3e6; white-space: nowrap; }
-#esc .burb { position: absolute; width: 270px; min-height: 120px; padding: 38px 20px 20px; background-size: 100% 100%; background-repeat: no-repeat; font-size: 22px; line-height: 1.05; color: #231914; }
+#esc .burb { position: absolute; width: 300px; min-height: 120px; padding: 40px 34px 40px 24px; background-size: 100% 100%; background-repeat: no-repeat; font-size: 21px; line-height: 1.1; color: #231914; pointer-events: auto; }
+#esc .burb-txt { overflow-wrap: anywhere; }
+#esc .burb-x { position: absolute; top: 12px; right: 14px; width: 24px; height: 24px; padding: 0; border: 2px solid #3a1515; background: #c9783b; color: #1c0f08; font: 14px/1 var(--f-body); cursor: pointer; display: grid; place-items: center; }
+#esc .burb-x:hover { background: #ea5f50; }
 #esc .cartel-txt { position: absolute; white-space: pre-line; font-family: var(--f-body); font-size: 26px; line-height: 1.1; color: #d6f6ff; text-align: center; display: grid; place-items: center; }
 #esc .marca { position: absolute; display: grid; place-items: center; pointer-events: none; }
 #esc .campo-nombre { position: absolute; font: 22px var(--f-body); padding: 0 6px; border: 2px solid #3a1515; background: #ead9b2; color: #231914; }
@@ -1293,27 +1296,27 @@ function iniciarVistaEscritorio() {
   function mostrarIngresante() { imgNpc.src = IMG(partida.actual.imagen.replace('.webp', '')); imgNpc.hidden = false; }
   function limpiarVentanilla() { imgNpc.hidden = true; imgNpc.removeAttribute('src'); }
 
-  /* ---------- Interrogatorio: dos globos de diálogo que se ocultan a los 4 s ---------- */
+  /* ---------- Interrogatorio: dos globos de diálogo que quedan abiertos hasta cerrarlos (✕ o Escape) ---------- */
   const capaDialogos = h('div', 'abs', { inset: '0', pointerEvents: 'none', zIndex: 30 }, juego);
   function globo(estilo) {
     const g = h('div', 'burb', Object.assign({ backgroundImage: url('e_dialogo') }, estilo), capaDialogos);
     g.hidden = true;
-    g._t = h('div', null, { width: '230px' }, g);
+    g._t = h('div', 'burb-txt', null, g);
+    const x = h('button', 'burb-x', null, g, '✕');
+    x.type = 'button'; x.title = 'Cerrar'; x.setAttribute('aria-label', 'Cerrar el diálogo');
+    x.addEventListener('click', ocultarGlobos);
     return g;
   }
-  const globoNpc = globo({ left: '0', top: pct(0.35) });
-  const globoJugador = globo({ left: pct(0.18), top: pct(0.30) });
-  let timerGlobos = null;
+  const globoNpc = globo({ left: '0', top: pct(0.33) });
+  const globoJugador = globo({ left: pct(0.20), top: pct(0.30) });
   function mostrarInterrogatorio(texto) {
     const partes = texto.split('\n');
     globoJugador._t.textContent = partes[0];
-    if (partes.length >= 2) { globoNpc._t.textContent = partes[1]; globoNpc.hidden = false; } else globoNpc.hidden = true;
+    if (partes.length >= 2) { globoNpc._t.textContent = partes.slice(1).join(' '); globoNpc.hidden = false; } else globoNpc.hidden = true;
     globoJugador.hidden = false;
-    bInterrogar.disabled = true;
-    clearTimeout(timerGlobos);
-    timerGlobos = setTimeout(() => { ocultarGlobos(); bInterrogar.disabled = false; }, 4000);
   }
   function ocultarGlobos() { globoNpc.hidden = true; globoJugador.hidden = true; }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') ocultarGlobos(); });
 
   /* ---------- Decisión (sello), animación y cartel de reputación ---------- */
   const decision = dialogo(620, 277, 'e_tabla', true, 40);
@@ -1441,7 +1444,7 @@ function iniciarVistaEscritorio() {
   bLlamar.addEventListener('click', () => {
     if (!partida.llamar()) return manejarError('llamar');
     Sonido.efecto('llamar');
-    bDocumentos.hidden = true; limpiarMesa(); ocultarGlobos(); bInterrogar.disabled = false;
+    bDocumentos.hidden = true; limpiarMesa(); ocultarGlobos();
     mostrarRestantes(); mostrarIngresante(); restaurarLibro();
   });
   bLibro.addEventListener('click', alternarLibro);
@@ -1474,7 +1477,7 @@ function iniciarVistaEscritorio() {
   function iniciarJuego() {
     partida.iniciar();
     limpiarMesa(); cerrarLibro(); limpiarVentanilla(); ocultarGlobos();
-    bDocumentos.hidden = true; bInterrogar.disabled = false;
+    bDocumentos.hidden = true; 
     [decision, cartel, anuncio].forEach(d => { d.hidden = true; });
     finPendiente = null;
     mostrarRestantes();
