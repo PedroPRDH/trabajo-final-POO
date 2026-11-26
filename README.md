@@ -142,3 +142,12 @@ Desde la pantalla final se puede guardar el puntaje ingresando un nombre. `Punta
     - Control de Versiones: Git y GitHub.
     - Persistencia: A definir durante las siguientes etapas del proyecto.
 
+
+---
+
+## Versión web (jugable desde el celular)
+
+La carpeta `docs/` contiene una versión del juego que corre en cualquier navegador, pensada para pantallas táctiles. Es un port a JavaScript del mismo modelo (ingresantes, documentos, políticas, reglas del día y reputación), con la mesa de documentos arrastrable, el libro de reglas y sonido sintetizado con Web Audio.
+
+- **Probarla en local:** abrir `docs/index.html` o servir la carpeta con `python3 -m http.server --directory docs`.
+- **Publicarla con GitHub Pages:** *Settings → Pages → Build and deployment → Deploy from a branch*, elegir la rama y la carpeta `/docs`.

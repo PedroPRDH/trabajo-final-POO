@@ -1,3 +1,12 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1c120e">
+<meta name="description" content="Frontier: simulación de control fronterizo. Revisá documentos, aplicá las reglas del día y decidí quién pasa.">
+<link rel="icon" href="img/ing_caballero.webp" type="image/webp">
+<style>html{background:#1c120e;padding-top:env(safe-area-inset-top,0px)}body{margin:0}</style>
 <title>Frontier</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
@@ -29,11 +38,12 @@ body {
   font-family: var(--f-body);
   font-size: 21px;
   line-height: 1.25;
-  padding-block: 0 24px;
+  padding-block: 0 150px;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
 #app { max-width: 520px; margin: 0 auto; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--wood); }
 h1, h2, h3 { font-family: var(--f-display); font-weight: 400; margin: 0; text-wrap: balance; }
 button { font: inherit; color: inherit; }
 img { display: block; }
@@ -55,6 +65,7 @@ img { display: block; }
 .btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 var(--copper-dk); }
 .btn:disabled { background: var(--wood-3); color: #7b6a5a; box-shadow: 0 4px 0 #20130d; cursor: not-allowed; }
 .btn:focus-visible, .link:focus-visible { outline: 3px solid var(--glow); outline-offset: 2px; }
+.btn.corto { font-family: var(--f-body); font-size: 19px; line-height: 1; padding: 6px 2px; min-height: 54px; display: grid; place-items: center; min-width: 0; overflow: hidden; }
 .btn.ghost { background: transparent; color: var(--text); border-color: var(--copper); box-shadow: none; }
 .btn.ok { background: var(--ok); box-shadow: 0 4px 0 #2f6b37; }
 .btn.bad { background: var(--bad); box-shadow: 0 4px 0 #7b2a21; }
@@ -77,7 +88,8 @@ img { display: block; }
 .rep.low i.on { background: var(--bad); box-shadow: inset 0 -4px 0 #8c2f26; }
 .hud .lbl { font-family: var(--f-display); font-size: 9px; color: var(--muted); }
 .hud .val { font-size: 24px; text-align: right; font-variant-numeric: tabular-nums; }
-.hud .fecha { grid-column: 1 / -1; display: flex; justify-content: space-between; color: var(--muted); font-size: 20px; }
+.hud .fecha { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--muted); font-size: 20px; }
+.hud .fecha .link { font-size: 17px; padding: 4px 0; }
 
 /* Ventanilla */
 .escena { position: relative; border: 3px solid var(--copper-dk); background: #120906; }
@@ -93,34 +105,43 @@ img { display: block; }
 @keyframes golpe { from { transform: scale(2.2); opacity: 0; } to { transform: none; opacity: .95; } }
 @media (prefers-reduced-motion: reduce) { .sprite.entra, .sello-anim { animation: none; } }
 
-.dialogo { margin-top: 12px; min-height: 92px; background: #120906; border: 3px solid var(--copper); padding: 10px 14px; white-space: pre-line; }
+.dialogo { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 12; margin-top: 12px; min-height: 76px; max-height: 128px; overflow-y: auto; background: #120906; border: 3px solid var(--copper); padding: 8px 14px; white-space: pre-line; line-height: 1.1; }
 .dialogo .insp { color: var(--glow); }
 .dialogo.ok { border-color: var(--ok); }
 .dialogo.bad { border-color: var(--bad); }
 .dialogo strong { font-weight: 400; }
 
-.acciones { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
-.pista { color: var(--muted); font-size: 19px; margin: 12px 0 0; min-height: 24px; }
+.barra { position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; background: var(--wood-2); border-top: 3px solid var(--copper);
+  padding-top: 6px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.barra > div { max-width: 520px; margin: 0 auto; }
+.acciones { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.pista { color: var(--muted); font-size: 19px; margin: 0 0 6px; min-height: 20px; line-height: 1; text-align: center; }
 
-/* Mesa */
-.mesa { margin-top: 20px; }
-.mesa h2 { font-size: 11px; color: var(--copper); margin-bottom: 10px; }
-.carrusel { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 10px; -webkit-overflow-scrolling: touch; }
-.doc { flex: 0 0 min(88%, 400px); scroll-snap-align: center; background: var(--paper); color: var(--ink);
-  border: 4px solid #5a1f1f; padding: 10px 12px 12px; min-width: 0; }
-.doc h3 { font-size: 10px; line-height: 1.5; color: #5a1f1f; text-align: center; border-bottom: 3px double #5a1f1f; padding-bottom: 8px; }
-.doc .cuerpo { display: grid; grid-template-columns: 84px 1fr; gap: 10px; margin-top: 10px; align-items: start; }
-.doc .fotos { display: grid; gap: 8px; }
-.doc .fotos img { width: 100%; height: 96px; object-fit: cover; border: 3px solid #5a1f1f; background: #8a8a8a; }
-.doc .fotos img.hue { object-fit: contain; background: #d8c79b; height: 64px; }
-.doc .fotos small { font-family: var(--f-display); font-size: 7px; color: #5a1f1f; margin-top: -4px; }
-.doc dl { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
-.doc dt { color: #7a3a3a; font-size: 15px; text-transform: uppercase; margin-top: 5px; line-height: 1; }
-.doc dd { margin: 0; font-size: 23px; line-height: 1.05; overflow-wrap: anywhere; }
-.doc.solo .cuerpo { grid-template-columns: 1fr; }
-.doc.solo dl { grid-template-columns: 1fr 1fr; column-gap: 12px; }
-.vacia { color: var(--muted); padding: 14px 0; }
-.nota { color: var(--muted); font-size: 18px; margin: 0; text-align: center; }
+/* Mesa: superficie de madera donde se arrastran documentos y libro */
+.mesa { margin-top: 18px; }
+.mesa h2 { font-size: 11px; color: var(--copper); margin-bottom: 8px; }
+.desk { position: relative; height: 560px; overflow: hidden; isolation: isolate; touch-action: pan-y; scroll-margin-bottom: 140px;
+  border: 4px solid var(--copper-dk);
+  background:
+    repeating-linear-gradient(90deg, rgba(0,0,0,.18) 0 2px, transparent 2px 46px),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px, transparent 1px 9px),
+    linear-gradient(#2a1a13, #231610); }
+.desk .vacia { position: absolute; left: 0; right: 0; top: 40%; text-align: center; color: #6b5645; padding: 0 24px; pointer-events: none; }
+.obj { position: absolute; left: 0; top: 0; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab;
+  filter: drop-shadow(3px 5px 0 rgba(0, 0, 0, .5)); -webkit-tap-highlight-color: transparent; }
+.obj.agarrado { cursor: grabbing; filter: drop-shadow(6px 10px 0 rgba(0, 0, 0, .45)); }
+.obj:focus-visible { outline: 3px solid var(--glow); outline-offset: 2px; }
+.obj .esc { position: absolute; left: 0; top: 0; transform-origin: 0 0; font-family: var(--f-body); font-size: 22px; line-height: 20px; color: #231914; font-weight: 400; }
+.esc > img, .esc > span { position: absolute; display: block; pointer-events: none; -webkit-user-drag: none; }
+.esc > img.fondo { left: 0; top: 0; width: 100%; height: 100%; }
+.esc > img.rec { object-fit: cover; }
+.esc > span { white-space: nowrap; overflow: hidden; text-overflow: clip; }
+.libro-cerrado { position: absolute; inset: 0; }
+.cerrar-libro { position: absolute; width: 30px; height: 30px; padding: 0; display: grid; place-items: center; cursor: pointer;
+  background: var(--copper); color: #1c0f08; border: 3px solid #120906; font-family: var(--f-display); font-size: 12px; }
+.ordenar { margin-top: 10px; width: 100%; }
+.nota { color: var(--muted); font-size: 18px; margin: 8px 0 0; text-align: center; }
 
 /* Modales */
 .modal { position: fixed; inset: 0; z-index: 20; background: rgba(8, 4, 2, .84); display: grid; place-items: center;
@@ -128,10 +149,6 @@ img { display: block; }
 .modal .caja { width: min(100%, 460px); background: var(--wood-2); border: 4px solid var(--copper); padding: 18px; }
 .modal h2 { font-size: 13px; color: var(--glow); margin-bottom: 12px; line-height: 1.5; }
 .modal .fila { display: grid; gap: 12px; margin-top: 16px; }
-.libro { background: #3a2018; border: 3px solid #1a0b07; padding: 12px 14px; }
-.libro p { margin: 0 0 6px; }
-.libro .dia { font-family: var(--f-display); font-size: 10px; color: var(--copper); margin-bottom: 8px; line-height: 1.6; }
-.libro .regla { font-size: 24px; color: var(--paper); }
 .sellos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
 .sellos button { display: grid; gap: 6px; justify-items: center; padding: 12px 6px; background: var(--wood-3); border: 3px solid #120906; cursor: pointer; font-family: var(--f-display); font-size: 11px; }
 .sellos button img { width: 76px; height: 88px; object-fit: contain; image-rendering: pixelated; }
@@ -155,13 +172,14 @@ img { display: block; }
     <div class="menu-btns">
       <button class="btn" id="btn-jugar" type="button">JUGAR</button>
       <button class="btn ghost" id="btn-como" type="button">CÓMO SE JUEGA</button>
+      <button class="btn ghost" id="m-sonido" type="button">SONIDO: SÍ</button>
     </div>
     <div class="panel" id="como" hidden>
       <h3>CÓMO SE JUEGA</h3>
       <ol>
         <li>Tocá <b>Llamar</b> para que pase el próximo ingresante.</li>
         <li><b>Interrogalo</b> y pedile los <b>documentos</b>.</li>
-        <li>Compará los papeles con las <b>Reglas</b> del día.</li>
+        <li>Arrastrá los papeles por la <b>mesa</b> y compará con el <b>libro de reglas</b> (tocalo para abrirlo).</li>
         <li>Abrí el <b>Sello</b> y aceptá o rechazá.</li>
       </ol>
       <p class="nota" style="margin-top:10px;text-align:left">Acertar suma 1 de reputación. Equivocarte resta 3. Si llegás a 0 te despiden. Si atendés a los 10 ingresantes, ganás.</p>
@@ -180,49 +198,33 @@ img { display: block; }
         <div class="lbl" style="text-align:right">EN FILA</div>
         <div class="val" id="fila">10</div>
       </div>
-      <div class="fecha"><span id="fecha"></span><span id="dia"></span></div>
+      <div class="fecha"><span id="fecha"></span><span id="dia"></span><button class="link" id="a-sonido" type="button">SONIDO: SÍ</button></div>
     </div>
 
     <div class="escena"><img class="banner" src="img/escena.webp" alt="Puerta de la frontera"></div>
     <div class="ventanilla" id="ventanilla"></div>
     <div class="dialogo" id="dialogo" aria-live="polite"></div>
 
-    <div class="acciones">
-      <button class="btn" id="a-llamar" type="button">LLAMAR</button>
-      <button class="btn" id="a-interrogar" type="button">INTERROGAR</button>
-      <button class="btn" id="a-docs" type="button">DOCUMENTOS</button>
-      <button class="btn" id="a-sello" type="button">SELLO</button>
-    </div>
-    <p class="pista" id="pista"></p>
-    <button class="btn ghost" id="a-reglas" type="button" style="width:100%;margin-top:10px">LIBRO DE REGLAS</button>
-
-    <div class="mesa" id="mesa" hidden>
+    <div class="mesa">
       <h2>MESA</h2>
-      <div class="carrusel" id="carrusel"></div>
-      <p class="nota">Deslizá para ver todos los documentos.</p>
+      <div class="desk" id="desk"></div>
+      <button class="btn ghost corto ordenar" id="a-ordenar" type="button">ORDENAR MESA</button>
+      <p class="nota">Arrastrá los papeles y el libro. Se pueden superponer.</p>
     </div>
     <button class="link" id="a-salir" type="button" style="margin-top:12px">Volver al menú</button>
-  </section>
-</div>
 
-<!-- Reglas -->
-<div class="modal" id="m-reglas" hidden role="dialog" aria-modal="true" aria-labelledby="t-reglas">
-  <div class="caja">
-    <h2 id="t-reglas">LIBRO DE REGLAS</h2>
-    <div class="libro" id="reglas-dia"></div>
-    <div class="panel" style="margin-top:14px">
-      <h3>REGLAS FIJAS</h3>
-      <ul>
-        <li>Todos necesitan DNI.</li>
-        <li>Turistas y trabajadores: también pasaporte.</li>
-        <li>Trabajadores: además permiso de entrada.</li>
-        <li>Nombre, origen, DNI y raza deben coincidir entre los papeles y con la persona.</li>
-        <li>Nada vencido. Nadie nació después de la fecha de hoy.</li>
-        <li>Rechazá a toda amenaza.</li>
-      </ul>
+    <div class="barra">
+      <div>
+        <p class="pista" id="pista"></p>
+        <div class="acciones">
+          <button class="btn corto" id="a-llamar" type="button">LLAMAR</button>
+          <button class="btn corto" id="a-interrogar" type="button">INTERROGAR</button>
+          <button class="btn corto" id="a-docs" type="button">PEDIR DOCS</button>
+          <button class="btn corto" id="a-sello" type="button">SELLO</button>
+        </div>
+      </div>
     </div>
-    <div class="fila"><button class="btn" id="c-reglas" type="button">CERRAR</button></div>
-  </div>
+  </section>
 </div>
 
 <!-- Sello -->
@@ -255,10 +257,12 @@ img { display: block; }
 
 // Fechas como número AAAAMMDD para compararlas sin libreras.
 const D = (y, m, d) => y * 10000 + m * 100 + d;
+// Formato ISO (AAAA-MM-DD), igual que el juego de escritorio, para poder comparar fechas a simple vista.
 const fmtFecha = n => {
   const y = Math.floor(n / 10000), m = Math.floor(n / 100) % 100, d = n % 100;
-  return String(d).padStart(2, '0') + '/' + String(m).padStart(2, '0') + '/' + y;
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
 };
+const PLANTILLA_CLAN = { UNION_MAGICA: 'um', PUERTO_UMBRAL: 'pu', TITAN_DIGITAL: 'ca' };
 
 const NOMBRE_RAZA = { HUMANO: 'Humano', CYBORG: 'Cyborg', ALIEN: 'Alien', GUARDIANES: 'Guardián' };
 const NOMBRE_CLAN = { UNION_MAGICA: 'Unión Mágica', TITAN_DIGITAL: 'Titán Digital', PUERTO_UMBRAL: 'Puerto Umbral' };
@@ -271,7 +275,7 @@ class Documento {
   }
   estaVencido(fechaActual) { return this.vencimiento < fechaActual; }
   aportarEvidencias(resumen) { throw new Error('abstracto'); }
-  tarjeta() { throw new Error('abstracto'); }
+  vista() { throw new Error('abstracto'); }
 }
 
 class DNI extends Documento {
@@ -283,12 +287,13 @@ class DNI extends Documento {
     r.acreditar('DNI'); r.numerosDni.push(String(this.nro));
     r.razas.push(this.raza); r.nacimientos.push(this.nacimiento);
   }
-  tarjeta() {
-    return {
-      titulo: 'DOCUMENTO DE IDENTIDAD INTERGALÁCTICO', foto: this.foto, huella: this.huella,
-      campos: [['Nombre', this.nombre], ['Raza', NOMBRE_RAZA[this.raza]], ['Nacimiento', fmtFecha(this.nacimiento)],
-        ['Origen', this.origen], ['DNI', this.nro], ['Vence', fmtFecha(this.vencimiento)]]
-    };
+  // Posiciones tomadas de FabricaVistaDocumento (px de diseño de la versión Java).
+  vista() {
+    return { w: 420, h: 312, fondo: 'doc_dni.webp', items: [
+      { img: this.foto, x: 21, y: 84, w: 129, h: 132 }, { img: this.huella, x: 30, y: 242, w: 105, h: 55 },
+      { t: this.nombre, x: 265, y: 64, w: 148 }, { t: this.raza, x: 237, y: 93, w: 174 },
+      { t: fmtFecha(this.nacimiento), x: 320, y: 121, w: 92 }, { t: this.origen, x: 265, y: 150, w: 146 },
+      { t: String(this.nro), x: 222, y: 180, w: 188 }, { t: fmtFecha(this.vencimiento), x: 260, y: 244, w: 125 }] };
   }
 }
 
@@ -300,12 +305,11 @@ class Pasaporte extends Documento {
   aportarEvidencias(r) {
     r.acreditar('PASAPORTE'); r.razas.push(this.raza); r.nacimientos.push(this.nacimiento);
   }
-  tarjeta() {
-    return {
-      titulo: NOMBRE_CLAN[this.clanEmisor].toUpperCase() + '<br>PASAPORTE', foto: this.foto, huella: this.huella,
-      campos: [['Nombre', this.nombre], ['Raza', NOMBRE_RAZA[this.raza]], ['Nacimiento', fmtFecha(this.nacimiento)],
-        ['Origen', this.origen], ['Vence', fmtFecha(this.vencimiento)]]
-    };
+  vista() {
+    return { w: 360, h: 440, fondo: 'pasp_' + PLANTILLA_CLAN[this.clanEmisor] + '.webp', items: [
+      { img: this.foto, x: 34, y: 86, w: 111, h: 115 }, { t: this.nombre, x: 225, y: 78, w: 125 },
+      { t: this.raza, x: 212, y: 106, w: 138 }, { t: fmtFecha(this.nacimiento), x: 260, y: 132, w: 88 },
+      { t: this.origen, x: 225, y: 160, w: 125 }, { img: this.huella, x: 230, y: 183, w: 75, h: 32 }] };
   }
 }
 
@@ -315,12 +319,11 @@ class Permiso extends Documento {
     Object.assign(this, { dni, ocupacion, numPermiso, clanEmisor });
   }
   aportarEvidencias(r) { r.acreditar('PERMISO'); r.dniEnPermisos.push(this.dni); }
-  tarjeta() {
-    return {
-      titulo: 'PERMISO DE ENTRADA', solo: true,
-      campos: [['Nombre', this.nombre], ['Origen', this.origen], ['DNI', this.dni], ['Ocupación', this.ocupacion],
-        ['N° permiso', this.numPermiso], ['Emisor', NOMBRE_CLAN[this.clanEmisor]], ['Vence', fmtFecha(this.vencimiento)]]
-    };
+  vista() {
+    return { w: 320, h: 456, fondo: 'perm_' + PLANTILLA_CLAN[this.clanEmisor] + '.webp', items: [
+      { t: this.nombre, x: 120, y: 160, w: 190, h: 22 }, { t: this.dni, x: 80, y: 190, w: 190, h: 22 },
+      { t: this.ocupacion, x: 153, y: 215, w: 160, h: 22 }, { t: this.origen, x: 115, y: 246, w: 230, h: 22 },
+      { t: String(this.numPermiso), x: 152, y: 270, w: 150, h: 22 }, { t: fmtFecha(this.vencimiento), x: 105, y: 297, w: 200, h: 22 }] };
   }
 }
 
@@ -454,16 +457,16 @@ class ReglasDia {
 class ReglasVariacion1 extends ReglasDia {
   constructor() { super(1, 'Variación 1: Solo Humanos', D(2159, 11, 14)); }
   get razasProhibidas() { return ['ALIEN', 'GUARDIANES', 'CYBORG']; }
-  get reglasDetalladas() { return ['1. ¡SOLO pasan humanos!', '2. PROHIBIDO el ingreso a cualquier otra raza.']; }
+  get reglasDetalladas() { return ['1. SOLO pasan humanos!', '2. PROHIBIDO el ingreso', 'a cualquier otra Raza.']; }
 }
 class ReglasVariacion2 extends ReglasDia {
   constructor() { super(2, 'Variación 2: Restricción de Origen', D(2159, 11, 15)); }
   get ciudadesProhibidas() { return ['ZOMBAR', 'NAMEK']; }
-  get reglasDetalladas() { return ['1. Se admiten todas las razas.', '2. ÚNICAMENTE provenientes de HASGARD, BALES y LANDER.']; }
+  get reglasDetalladas() { return ['1. Se admiten todas las razas.', '2. UNICAMENTE provenientes', 'de HASGARD, BALES y LANDER.']; }
 }
 class ReglasVariacion3 extends ReglasDia {
   constructor() { super(3, 'Variación 3: Fronteras Abiertas', D(2159, 11, 16)); }
-  get reglasDetalladas() { return ['1. Fronteras abiertas.', '2. Se admiten todas las razas y orígenes.', '3. Revisar documentación.']; }
+  get reglasDetalladas() { return ['1. Fronteras Abiertas.', '2. Se admiten todas', 'las razas y orígenes.', '3. Revisar documentación.']; }
 }
 const crearVariacionAleatoria = () => [new ReglasVariacion1(), new ReglasVariacion2(), new ReglasVariacion3()][Math.floor(Math.random() * 3)];
 
@@ -617,39 +620,237 @@ class Partida {
   }
 }
 
+/* ======================= SONIDO (sintetizado con Web Audio, sin archivos) ======================= */
+const Sonido = (() => {
+  let ctx = null, master = null, musica = null, efectos = null, activo = true, timer = null, compas = 0, tocando = false;
+  try { activo = localStorage.getItem('frontier-sonido') !== 'no'; } catch (e) {}
+  const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+
+  function init() {
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      ctx = new AC();
+      master = ctx.createGain(); master.gain.value = activo ? 1 : 0; master.connect(ctx.destination);
+      musica = ctx.createGain(); musica.gain.value = 0.13; musica.connect(master);
+      efectos = ctx.createGain(); efectos.gain.value = 0.55; efectos.connect(master);
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+    return true;
+  }
+  function tono(f, t0, dur, tipo, vol, dest, hasta) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = tipo; o.frequency.setValueAtTime(f, t0);
+    if (hasta) o.frequency.exponentialRampToValueAtTime(hasta, t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(dest || efectos); o.start(t0); o.stop(t0 + dur + 0.03);
+  }
+  function ruido(t0, dur, vol, freq, q) {
+    const n = Math.max(1, Math.floor(ctx.sampleRate * dur));
+    const b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    const s = ctx.createBufferSource(); s.buffer = b;
+    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q || 1;
+    const g = ctx.createGain(); g.gain.value = vol;
+    s.connect(f); f.connect(g); g.connect(efectos); s.start(t0);
+  }
+
+  const SFX = {
+    clic:     t => tono(520, t, 0.05, 'square', 0.12),
+    llamar:   t => { tono(294, t, 0.16, 'sawtooth', 0.22); tono(294, t + 0.2, 0.12, 'sawtooth', 0.22); tono(392, t + 0.34, 0.45, 'sawtooth', 0.26); tono(588, t + 0.34, 0.45, 'square', 0.07); },
+    hablar:   t => { for (let i = 0; i < 5; i++) tono(150 + Math.random() * 110, t + i * 0.075, 0.06, 'square', 0.1); },
+    papeles:  t => { ruido(t, 0.16, 0.5, 2600, 0.7); ruido(t + 0.12, 0.2, 0.4, 3400, 0.7); ruido(t + 0.3, 0.12, 0.3, 2200, 0.8); },
+    agarrar:  t => tono(660, t, 0.04, 'triangle', 0.16),
+    soltar:   t => { tono(260, t, 0.07, 'triangle', 0.2); ruido(t, 0.05, 0.25, 1200, 1); },
+    libro:    t => { ruido(t, 0.14, 0.45, 900, 0.8); tono(180, t, 0.12, 'triangle', 0.15, null, 120); },
+    sello:    t => { tono(130, t, 0.22, 'sine', 0.7, null, 45); ruido(t, 0.08, 0.6, 500, 0.6); },
+    acierto:  t => { tono(880, t, 0.22, 'sine', 0.3); tono(1320, t + 0.1, 0.4, 'sine', 0.28); },
+    error:    t => { tono(150, t, 0.4, 'sawtooth', 0.28, null, 90); tono(113, t, 0.4, 'square', 0.14, null, 70); },
+    victoria: t => { [523, 659, 784, 1047, 1319].forEach((f, i) => tono(f, t + i * 0.13, 0.35, 'square', 0.2)); },
+    derrota:  t => { [392, 349, 294, 220].forEach((f, i) => tono(f, t + i * 0.22, 0.45, 'sawtooth', 0.22)); }
+  };
+  function efecto(nombre) { if (!activo || !init()) return; try { SFX[nombre](ctx.currentTime + 0.01); } catch (e) {} }
+
+  // Música original: arpegio en La menor (Am - F - C - G), un compás cada ~2,5 s.
+  const ACORDES = [[45, [57, 60, 64]], [41, [53, 57, 60]], [48, [60, 64, 67]], [43, [55, 59, 62]]];
+  const PASO = 60 / 96 / 2; // corchea a 96 bpm
+  function programarCompas() {
+    if (!tocando || !ctx) return;
+    const t0 = Math.max(ctx.currentTime + 0.05, proximo);
+    const [raiz, notas] = ACORDES[compas % 4];
+    const patron = [0, 1, 2, 1, 0, 1, 2, 1];
+    tono(mtof(raiz), t0, PASO * 4, 'triangle', 0.55, musica);
+    tono(mtof(raiz), t0 + PASO * 4, PASO * 3.6, 'triangle', 0.45, musica);
+    patron.forEach((p, i) => tono(mtof(notas[p] + (i % 4 === 3 ? 12 : 0)), t0 + i * PASO, PASO * 0.9, 'square', 0.14, musica));
+    if (compas % 4 === 3) tono(mtof(notas[2] + 24), t0 + PASO * 6, PASO * 1.8, 'sine', 0.12, musica);
+    proximo = t0 + PASO * 8;
+    compas++;
+    timer = setTimeout(programarCompas, Math.max(100, (proximo - ctx.currentTime - 0.4) * 1000));
+  }
+  let proximo = 0;
+  function iniciarMusica() {
+    if (!init() || tocando) return;
+    tocando = true; proximo = ctx.currentTime + 0.1; programarCompas();
+  }
+  function detenerMusica() { tocando = false; clearTimeout(timer); }
+  function alternar() {
+    activo = !activo;
+    try { localStorage.setItem('frontier-sonido', activo ? 'si' : 'no'); } catch (e) {}
+    if (activo) { init(); master.gain.value = 1; } else if (master) master.gain.value = 0;
+    return activo;
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (!ctx) return;
+    if (document.hidden) ctx.suspend(); else if (activo) ctx.resume();
+  });
+  return { efecto, iniciarMusica, detenerMusica, alternar, get activo() { return activo; } };
+})();
+
 /* ======================= VISTA ======================= */
 const $ = id => document.getElementById(id);
 const partida = new Partida();
-let mostrarDocs = false;
+const desk = $('desk');
 let tipoVisible = false;
-let lastActual = null;
+let zTop = 10;
+let K = 1;          // escala de la mesa: los documentos se diseñan en px de la versión de escritorio
+let libroAbierto = false;
 
 function show(el, on) { el.hidden = !on; }
 
+/* ---- Mesa: objetos arrastrables que se pueden superponer ---- */
+function escalaMesa() { K = Math.min(1, (desk.clientWidth - 12) / 420); return K; }
+
+function colocar(el, x, y) {
+  const mx = Math.max(0, desk.clientWidth - el.offsetWidth), my = Math.max(0, desk.clientHeight - el.offsetHeight);
+  el.style.left = Math.max(0, Math.min(mx, x)) + 'px';
+  el.style.top = Math.max(0, Math.min(my, y)) + 'px';
+}
+
+function htmlItems(items) {
+  return items.map(it => {
+    const base = 'left:' + it.x + 'px;top:' + it.y + 'px;width:' + it.w + 'px;height:' + (it.h || 20) + 'px;';
+    if (it.img) return '<img class="rec" src="img/' + it.img + '" alt="" style="' + base + '">';
+    return '<span style="' + base + 'line-height:' + (it.h || 20) + 'px">' + it.t + '</span>';
+  }).join('');
+}
+
+// Si una fuente no carga o el texto no entra en su casillero, se achica hasta que entre.
+function ajustarTextos(el) {
+  el.querySelectorAll('.esc > span').forEach(s => {
+    s.style.fontSize = '';
+    const ancho = s.clientWidth, real = s.scrollWidth;
+    if (ancho > 0 && real > ancho + 1) s.style.fontSize = Math.max(11, Math.floor(22 * ancho / real)) + 'px';
+  });
+}
+
+function pintarObjeto(el, desc, k) {
+  el._desc = desc;
+  el.style.width = desc.w * k + 'px';
+  el.style.height = desc.h * k + 'px';
+  el.innerHTML = '<div class="esc" style="width:' + desc.w + 'px;height:' + desc.h + 'px;transform:scale(' + k + ')">' +
+    '<img class="fondo" src="img/' + desc.fondo + '" alt="">' + htmlItems(desc.items) + (desc.extra || '') + '</div>';
+  if (el.isConnected) ajustarTextos(el);
+}
+
+function hacerArrastrable(el, alTocar) {
+  let id = null, sx = 0, sy = 0, ox = 0, oy = 0, movido = false;
+  el.addEventListener('pointerdown', e => {
+    if (e.target.closest('[data-nodrag]')) return;
+    id = e.pointerId; try { el.setPointerCapture(id); } catch (err) {}
+    el.style.zIndex = ++zTop;
+    sx = e.clientX; sy = e.clientY; ox = el.offsetLeft; oy = el.offsetTop; movido = false;
+    el.classList.add('agarrado'); Sonido.efecto('agarrar');
+  });
+  el.addEventListener('pointermove', e => {
+    if (id !== e.pointerId) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (!movido && Math.hypot(dx, dy) < 5) return;
+    movido = true; colocar(el, ox + dx, oy + dy);
+  });
+  const soltar = e => {
+    if (id !== e.pointerId) return;
+    id = null; el.classList.remove('agarrado');
+    if (movido) Sonido.efecto('soltar'); else if (alTocar && e.type === 'pointerup') alTocar(e);
+  };
+  el.addEventListener('pointerup', soltar);
+  el.addEventListener('pointercancel', soltar);
+}
+
+/* ---- Libro de reglas ---- */
+const REGLAS_FIJAS = ['Siempre:', '- Todos: DNI', '- Turista: + pasaporte', '- Trabajador: + permiso', '- Todo debe coincidir', '- Nada vencido'];
+const LIBRO_W = 440, LIBRO_H = 606, LIBRO_CW = 120, LIBRO_CH = 159;
+const libro = document.createElement('div');
+libro.className = 'obj'; libro.id = 'libro'; libro.tabIndex = 0; libro.setAttribute('role', 'button');
+desk.appendChild(libro);
+
+function descLibro() {
+  if (!libroAbierto) return { w: LIBRO_CW, h: LIBRO_CH, fondo: 'libro_cerrado.webp', items: [] };
+  const paso = 33.86, y0 = 140.7 - paso + 3;
+  const filas = ['Hoy: ' + fmtFecha(partida.reglas.fecha)].concat(partida.reglas.reglasDetalladas, [''], REGLAS_FIJAS);
+  const items = filas.map((t, i) => ({ t: t, x: 98, y: y0 + i * paso, w: 300, h: paso })).filter(it => it.t);
+  return { w: LIBRO_W, h: LIBRO_H, fondo: 'libro_abierto.webp', items,
+    extra: '<button type="button" class="cerrar-libro" data-nodrag aria-label="Cerrar el libro" style="left:396px;top:26px;width:34px;height:34px">X</button>' };
+}
+
+function renderLibro(reubicar) {
+  const k = libroAbierto ? Math.min(1, (desk.clientWidth - 4) / LIBRO_W) : Math.min(1, (desk.clientWidth - 12) / 420);
+  pintarObjeto(libro, descLibro(), k);
+  libro.setAttribute('aria-label', libroAbierto ? 'Libro de reglas abierto' : 'Libro de reglas. Tocalo para abrirlo.');
+  libro.style.zIndex = ++zTop;
+  if (reubicar) colocar(libro, desk.clientWidth - libro.offsetWidth - 10, desk.clientHeight - libro.offsetHeight - 10);
+  else colocar(libro, libro.offsetLeft, libro.offsetTop);
+}
+function abrirLibro() { libroAbierto = true; renderLibro(false); Sonido.efecto('libro'); }
+function cerrarLibro() { libroAbierto = false; renderLibro(false); Sonido.efecto('libro'); }
+hacerArrastrable(libro, () => { if (!libroAbierto) abrirLibro(); });
+libro.addEventListener('click', e => { if (e.target.closest('.cerrar-libro')) cerrarLibro(); });
+libro.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && !libroAbierto) { e.preventDefault(); abrirLibro(); } if (e.key === 'Escape' && libroAbierto) cerrarLibro(); });
+
+/* ---- Documentos sobre la mesa ---- */
+function documentosEnMesa() { return Array.from(desk.querySelectorAll('.obj.doc')); }
+function limpiarDocumentos() { documentosEnMesa().forEach(d => d.remove()); }
+
+function ponerDocumentos() {
+  limpiarDocumentos();
+  const k = escalaMesa(), w = desk.clientWidth;
+  const pos = [[6, 6], [Math.round(w * 0.1), 130], [Math.round(w * 0.04), 235]];
+  partida.actual.documentos.forEach((doc, i) => {
+    const el = document.createElement('div');
+    el.className = 'obj doc';
+    pintarObjeto(el, doc.vista(), k);
+    el.style.zIndex = ++zTop;
+    desk.appendChild(el);
+    ajustarTextos(el);
+    colocar(el, pos[i % 3][0], pos[i % 3][1]);
+    hacerArrastrable(el);
+  });
+}
+
+function ordenarMesa() {
+  const k = escalaMesa(), w = desk.clientWidth;
+  const pos = [[6, 6], [Math.round(w * 0.1), 130], [Math.round(w * 0.04), 235]];
+  documentosEnMesa().forEach((el, i) => { pintarObjeto(el, el._desc, k); el.style.zIndex = ++zTop; colocar(el, pos[i % 3][0], pos[i % 3][1]); });
+  libroAbierto = false; renderLibro(true);
+  Sonido.efecto('papeles');
+}
+
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => documentosEnMesa().concat([libro]).forEach(ajustarTextos));
+
+window.addEventListener('resize', () => {
+  const k = escalaMesa();
+  documentosEnMesa().forEach(el => { pintarObjeto(el, el._desc, k); colocar(el, el.offsetLeft, el.offsetTop); });
+  renderLibro(false);
+});
+
+/* ---- Resto de la interfaz ---- */
 function renderRep() {
   const rep = partida.gestor.reputacion;
   const cont = $('rep');
   cont.className = 'rep' + (rep <= 3 ? ' low' : '');
   cont.innerHTML = Array.from({ length: 10 }, (_, i) => '<i class="' + (i < rep ? 'on' : '') + '"></i>').join('');
   cont.setAttribute('aria-label', 'Reputación ' + rep + ' de 10');
-}
-
-function tarjetaHTML(doc) {
-  const t = doc.tarjeta();
-  const campos = t.campos.map(([k, v]) => '<dt>' + k + '</dt><dd>' + v + '</dd>').join('');
-  const fotos = t.foto ? '<div class="fotos"><img src="img/' + t.foto + '" alt="Foto del documento">' +
-    '<img class="hue" src="img/' + t.huella + '" alt="Huella"><small>HUELLA</small></div>' : '';
-  return '<article class="doc' + (t.solo ? ' solo' : '') + '"><h3>' + t.titulo + '</h3><div class="cuerpo">' + fotos + '<dl>' + campos + '</dl></div></article>';
-}
-
-function renderMesa() {
-  const a = partida.actual;
-  const visible = mostrarDocs && a && ['ATENDIENDO', 'SELLO'].includes(partida.estado);
-  show($('mesa'), !!visible);
-  if (!visible) return;
-  $('carrusel').innerHTML = a.documentos.length
-    ? a.documentos.map(tarjetaHTML).join('')
-    : '<p class="vacia">No tiene ningún documento para mostrar.</p>';
 }
 
 function renderVentanilla(animar) {
@@ -664,7 +865,7 @@ const PISTAS = {
   LLAMADO: 'Tocá Llamar para que pase el próximo.',
   INTERROGATORIO: 'Interrogalo antes de pedirle los documentos.',
   DOCUMENTOS: 'Ahora pedile los documentos.',
-  ATENDIENDO: 'Compará los papeles con el libro de reglas y abrí el sello.',
+  ATENDIENDO: 'Compará los papeles con el libro y abrí el sello.',
   SELLO: '', DESPEDIDO: '', FINALIZADA: ''
 };
 
@@ -679,8 +880,7 @@ function renderAcciones() {
 
 function renderHud() {
   renderRep();
-  const quedan = partida.fila.length + (partida.actual ? 1 : 0);
-  $('fila').textContent = quedan;
+  $('fila').textContent = partida.fila.length + (partida.actual ? 1 : 0);
   $('fecha').textContent = 'Hoy: ' + fmtFecha(partida.reglas.fecha);
   $('dia').textContent = 'Día ' + partida.reglas.numero;
 }
@@ -689,44 +889,51 @@ function setDialogo(html, clase) {
   const d = $('dialogo');
   d.className = 'dialogo' + (clase ? ' ' + clase : '');
   d.innerHTML = html;
+  d.scrollTop = 0;
 }
 
-function renderReglas() {
-  const r = partida.reglas;
-  $('reglas-dia').innerHTML = '<div class="dia">' + fmtFecha(r.fecha) + '<br>' + r.descripcion.toUpperCase() + '</div>' +
-    r.reglasDetalladas.map(x => '<p class="regla">' + x + '</p>').join('');
-}
+function renderTodo(animar) { renderHud(); renderVentanilla(animar); renderAcciones(); }
 
-function renderTodo(animar) {
-  renderHud(); renderVentanilla(animar); renderAcciones(); renderMesa();
+function etiquetaSonido() {
+  const t = Sonido.activo ? 'SONIDO: SÍ' : 'SONIDO: NO';
+  $('a-sonido').textContent = t; $('m-sonido').textContent = t;
 }
+function alternarSonido() { Sonido.alternar(); etiquetaSonido(); if (Sonido.activo) Sonido.efecto('clic'); }
+$('a-sonido').onclick = alternarSonido;
+$('m-sonido').onclick = alternarSonido;
+etiquetaSonido();
 
 function empezar() {
   partida.iniciar();
-  mostrarDocs = false; tipoVisible = false;
+  tipoVisible = false; libroAbierto = false;
+  limpiarDocumentos();
   show($('menu'), false); show($('juego'), true);
+  escalaMesa(); renderLibro(true);
   setDialogo('<span class="insp">Inspector:</span> Otro día en la frontera. Llamá al primero de la fila.');
-  renderReglas();
   renderTodo(false);
   window.scrollTo(0, 0);
+  Sonido.efecto('clic'); Sonido.iniciarMusica();
 }
 
 function volverAlMenu() {
   show($('juego'), false); show($('menu'), true);
-  ['m-reglas', 'm-sello', 'm-fin'].forEach(id => show($(id), false));
+  ['m-sello', 'm-fin'].forEach(id => show($(id), false));
+  Sonido.detenerMusica();
   window.scrollTo(0, 0);
 }
 
 /* Acciones del jugador */
 $('btn-jugar').onclick = empezar;
-$('btn-como').onclick = () => { const p = $('como'); p.hidden = !p.hidden; };
+$('btn-como').onclick = () => { const p = $('como'); p.hidden = !p.hidden; Sonido.efecto('clic'); };
 $('a-salir').onclick = volverAlMenu;
 $('f-otra').onclick = () => { show($('m-fin'), false); empezar(); };
 $('f-menu').onclick = volverAlMenu;
+$('a-ordenar').onclick = ordenarMesa;
 
 $('a-llamar').onclick = () => {
   if (!partida.llamar()) return;
-  mostrarDocs = false; tipoVisible = false;
+  tipoVisible = false; limpiarDocumentos();
+  Sonido.efecto('llamar');
   setDialogo('<span class="insp">Inspector:</span> Siguiente, por favor.');
   renderTodo(true);
 };
@@ -735,32 +942,37 @@ $('a-interrogar').onclick = () => {
   const r = partida.interrogar();
   if (r === null) return;
   tipoVisible = true;
+  Sonido.efecto('hablar');
   setDialogo('<span class="insp">Inspector:</span> ¿A qué se debe su visita?\n<strong>' + partida.actual.nombre + ':</strong> ' + r);
   renderTodo(false);
 };
 
 $('a-docs').onclick = () => {
   if (!partida.solicitarDocumentos()) return;
-  mostrarDocs = true;
-  setDialogo('<span class="insp">Inspector:</span> Sus documentos, por favor.');
-  renderTodo(false);
-  $('mesa').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  Sonido.efecto('papeles');
+  if (partida.actual.documentos.length === 0) {
+    setDialogo('<span class="insp">Inspector:</span> Sus documentos, por favor.\n<strong>' + partida.actual.nombre + ':</strong> No tengo ninguno para mostrar.');
+  } else {
+    setDialogo('<span class="insp">Inspector:</span> Sus documentos, por favor. Arrastralos por la mesa y compará con el libro.');
+    ponerDocumentos();
+  }
+  renderAcciones();
+  desk.scrollIntoView({ behavior: 'smooth', block: 'end' });
 };
 
-$('a-sello').onclick = () => { if (partida.abrirSello()) show($('m-sello'), true); };
+$('a-sello').onclick = () => { if (partida.abrirSello()) { Sonido.efecto('clic'); show($('m-sello'), true); } };
 $('d-cancelar').onclick = () => { partida.cancelarDecision(); show($('m-sello'), false); renderAcciones(); };
-$('a-reglas').onclick = () => show($('m-reglas'), true);
-$('c-reglas').onclick = () => show($('m-reglas'), false);
 
 function decidir(acepta) {
   const actual = partida.actual;
   const res = partida.decidir(acepta);
   show($('m-sello'), false);
   if (!res) return;
-  mostrarDocs = false;
-  // Sello sobre el ingresante y veredicto.
+  limpiarDocumentos();
   const v = $('ventanilla');
   v.insertAdjacentHTML('beforeend', '<img class="sello-anim" src="img/' + (acepta ? 'sello_verde' : 'sello_rojo') + '.webp" alt="' + (acepta ? 'Aceptado' : 'Rechazado') + '">');
+  Sonido.efecto('sello');
+  setTimeout(() => Sonido.efecto(res.acierto ? 'acierto' : 'error'), 260);
   const accion = acepta ? 'Aceptaste' : 'Rechazaste';
   if (res.acierto) {
     setDialogo('<strong>Decisión correcta.</strong>\n' + accion + ' a ' + actual.nombre + '. Reputación +1.', 'ok');
@@ -768,8 +980,8 @@ function decidir(acepta) {
     setDialogo('<strong>Te equivocaste.</strong>\n' + accion + ' a ' + actual.nombre + '. ' + res.motivo + '\nReputación -3.', 'bad');
   }
   partida.actual = null;
-  renderHud(); renderAcciones(); renderMesa();
-  // La ventanilla queda con el sello unos instantes y luego se vacía.
+  renderHud(); renderAcciones();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
   setTimeout(() => { if (partida.actual === null) renderVentanilla(false); }, 1100);
   if (res.fin) setTimeout(() => finDePartida(res.fin), 1300);
 }
@@ -781,13 +993,14 @@ function finDePartida(fin) {
   if (fin === 'VICTORIA') {
     t.textContent = '¡TURNO COMPLETADO!'; t.className = 'fin-titulo v';
     $('fin-texto').textContent = 'Atendiste a los 10 ingresantes y terminaste con ' + partida.gestor.reputacion + ' de reputación.';
+    Sonido.efecto('victoria');
   } else {
     t.textContent = 'ESTÁS DESPEDIDO'; t.className = 'fin-titulo d';
     $('fin-texto').textContent = 'Cometiste demasiados errores y tu reputación llegó a 0. Devolvé la placa y retirate.';
+    Sonido.efecto('derrota');
   }
   show($('m-fin'), true);
 }
-
-// Cerrar modales de reglas con Escape.
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { show($('m-reglas'), false); } });
 </script>
+</body>
+</html>
