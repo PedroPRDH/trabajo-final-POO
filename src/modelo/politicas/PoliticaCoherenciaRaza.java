@@ -5,7 +5,7 @@ import modelo.Ingresantes.Ingresante;
 //import modelo.documentos.Documento;
 //import modelo.documentos.Pasaporte;
 
-public class PoliticaCoherenciaRaza extends PoliticaFronteriza {
+public class PoliticaCoherenciaRaza implements PoliticaFronteriza {
     private String motivoError = "La raza anatómica no coincide con los documentos";
 
     @Override

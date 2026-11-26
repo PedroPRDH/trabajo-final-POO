@@ -7,7 +7,7 @@ import java.util.Objects;
 import modelo.Ingresantes.Ingresante;
 import modelo.documentos.Documento;
 
-public class PoliticaVencimiento extends PoliticaFronteriza {
+public class PoliticaVencimiento implements PoliticaFronteriza {
     
     private final LocalDate fechaActualDelJuego;
 

@@ -5,7 +5,7 @@ import java.util.List;
 import modelo.TipoClan;
 import modelo.Ingresantes.Ingresante;
 
-public class PoliticaProhibicionClan extends PoliticaFronteriza {
+public class PoliticaProhibicionClan implements PoliticaFronteriza {
 
 private List<TipoClan> clanesProhibidos;
 

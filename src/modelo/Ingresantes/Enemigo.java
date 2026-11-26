@@ -17,13 +17,17 @@ public class Enemigo extends Ingresante{
         this.portaBomba = portaBomba;
     }
 
-    public boolean getportaBomba(){
+    public boolean isPortaBomba(){
         return this.portaBomba;
     }
 
-    @Override 
+    // Un enemigo que lleva una bomba se muestra nervioso: es una pista sutil para el jugador.
+    @Override
     public String darPresentacion(){
-        return "Hola, quiero ingresar al planeta";
+        if (this.portaBomba) {
+            return "(Suda y mira hacia los costados) Buenos días, vengo a ingresar al planeta.";
+        }
+        return "Buenos días, vengo a ingresar al planeta.";
     }
 
     @Override

@@ -7,7 +7,7 @@ import modelo.TipoRaza;
 import modelo.Ingresantes.Ingresante;
  
 // Rechaza a los ingresantes cuya raza esté prohibida.
-public class PoliticaProhibicionRaza extends PoliticaFronteriza {
+public class PoliticaProhibicionRaza implements PoliticaFronteriza {
  
     private final List<TipoRaza> razasProhibidas;
  

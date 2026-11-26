@@ -8,7 +8,7 @@ import modelo.Ingresantes.Ingresante;
 //import modelo.documentos.DNI;
 //import modelo.documentos.Pasaporte;
 
-public class PoliticaNacimientoValido extends PoliticaFronteriza {
+public class PoliticaNacimientoValido implements PoliticaFronteriza {
     private final LocalDate fechaActualDelJuego;
 
     public PoliticaNacimientoValido(LocalDate fechaActualDelJuego) {

@@ -7,7 +7,7 @@ import modelo.TipoCiudad;
 import modelo.Ingresantes.Ingresante;
 
 //Rechaza a los ingresantges que vengan de una ciudad prohibida.
-public class PoliticaProhibicionCiudad extends PoliticaFronteriza {
+public class PoliticaProhibicionCiudad implements PoliticaFronteriza {
     
     private final List<TipoCiudad> ciudadesProhibidas;
 

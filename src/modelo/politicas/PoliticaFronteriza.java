@@ -2,13 +2,14 @@ package modelo.politicas;
 
 import modelo.Ingresantes.Ingresante;
 
-public abstract class PoliticaFronteriza{ 
-   
-    public abstract boolean esValido (Ingresante ingresante); 
-   
-    public abstract String getMotivoRechazo();
+/**
+ * Contrato de una regla fronteriza: toda política debe poder verificar a un
+ * ingresante y explicar por qué lo rechaza. No tiene estado ni lógica común,
+ * por eso es una interfaz y no una clase abstracta.
+ */
+public interface PoliticaFronteriza {
 
-    //Politica fronteriza deja de representar una politica especifica
-    //y representa un concepto general de "regla fronteriza"
-    //TODA POLITICA FRONTERIZA DEBE PODER VERIFICAR UN INGRESANTE
+    boolean esValido(Ingresante ingresante);
+
+    String getMotivoRechazo();
 }

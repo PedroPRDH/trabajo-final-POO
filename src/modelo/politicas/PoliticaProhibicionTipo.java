@@ -8,7 +8,7 @@ import modelo.Ingresantes.Ingresante;
  
 // Rechaza a los ingresantes de un tipo prohibido (ej.:CIUDADANO,TURISTA,TRABAJADOR,ALIADO).
 // No confundir con PoliticaIngresante, que rechaza a los que son amenaza.
-public class PoliticaProhibicionTipo extends PoliticaFronteriza {
+public class PoliticaProhibicionTipo implements PoliticaFronteriza {
  
     private final List<TipoIngresante> tiposProhibidos;
  

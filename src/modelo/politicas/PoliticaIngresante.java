@@ -2,7 +2,7 @@ package modelo.politicas; //rechaza a los ingresantes que son amenaza.
 
 import modelo.Ingresantes.Ingresante;
 
-public class PoliticaIngresante extends PoliticaFronteriza {
+public class PoliticaIngresante implements PoliticaFronteriza {
 
     @Override
     public boolean esValido(Ingresante ingresante) {

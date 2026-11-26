@@ -8,7 +8,7 @@ import modelo.TipoIngresante;
 import modelo.documentos.RequisitoDocumental;
 import modelo.documentos.ResumenDocumental;
 
-public class PoliticaDocumentacionRequerida extends PoliticaFronteriza {
+public class PoliticaDocumentacionRequerida implements PoliticaFronteriza {
     
    @Override
     public boolean esValido(Ingresante ingresante) {

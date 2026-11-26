@@ -18,7 +18,8 @@ public class IngresanteRegular extends Ingresante{
 
 @Override 
     public String darPresentacion(){
-        return "Hola, soy un ciudadano regular.";
+        // Texto neutro: no debe delatar si el ingresante es o no una amenaza.
+        return "Buenos días, vengo a ingresar al planeta.";
     }
 
 @Override // METODO ABSTRACTO: que devuelve true o false si el ingresante es una amenaza

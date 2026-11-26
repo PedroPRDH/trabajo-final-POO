@@ -10,7 +10,11 @@ import modelo.TipoRaza;
 import modelo.documentos.Documento;
 import modelo.documentos.ResumenDocumental;
 
-public abstract class Ingresante { // Añadi abstract porque al usar el metodo "public abstract String responderInterrogatorio()" y colocarlo en "Enemigo.java" es una condicion obligatoria aclarar que ahora la clase "ingreante.java" es abstracta. --07/09/26 , 20:48hs
+/**
+ * Persona que se presenta en la ventanilla. Es abstracta porque cada tipo de
+ * ingresante define su propia presentación y si representa una amenaza.
+ */
+public abstract class Ingresante {
     private String nombreDeclarado;
     private ArrayList<Documento> documentos;    
     private TipoIngresante tipo; 
@@ -87,8 +91,13 @@ public abstract class Ingresante { // Añadi abstract porque al usar el metodo "
         return List.copyOf(documentos);
     }
 
+    // Al ser interrogado, el ingresante se presenta (comportamiento propio de cada
+    // subclase) y luego explica el motivo de su visita.
     public String responderInterrogatorio(){
-        return this.motivoVisita;
+        if (this.motivoVisita == null || this.motivoVisita.isBlank()) {
+            return this.darPresentacion();
+        }
+        return this.darPresentacion() + " " + this.motivoVisita;
     }
 
     public ResumenDocumental obtenerResumenDocumental() {

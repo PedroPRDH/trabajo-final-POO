@@ -9,7 +9,7 @@ import modelo.Ingresantes.Ingresante;
 import modelo.documentos.ResumenDocumental;
 
 
-public class PoliticaCoherenciaDni extends PoliticaFronteriza {
+public class PoliticaCoherenciaDni implements PoliticaFronteriza {
 
     @Override
     public boolean esValido(Ingresante ingresante) {

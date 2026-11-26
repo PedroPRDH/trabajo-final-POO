@@ -4,7 +4,7 @@ import java.util.List;
 import modelo.Ingresantes.Ingresante;
 import modelo.documentos.Documento;
 
-public class PoliticaCoherenciaOrigen extends PoliticaFronteriza {
+public class PoliticaCoherenciaOrigen implements PoliticaFronteriza {
     
     @Override
     public boolean esValido(Ingresante ingresante) {
