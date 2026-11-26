@@ -178,7 +178,8 @@ html.escritorio body > *:not(#esc):not(script) { display: none !important; }
 #esc .txt { position: absolute; font-size: 22px; white-space: nowrap; overflow: hidden; color: #231914; }
 #esc .libro .txt { color: #2b1a10; }
 #esc .cian { color: #5ed3e6; font-family: var(--f-body); }
-#esc .contador { position: absolute; display: grid; place-items: center; background-size: 100% 100%; font-family: var(--f-display); font-size: clamp(8px, 0.72vw, 14px); color: #f0e4cb; text-align: center; padding: 0 6% 0 8%; white-space: nowrap; }
+#esc .contador { position: absolute; background-size: 100% 100%; }
+#esc .ctxt { position: absolute; left: 5.6%; width: 88.4%; top: 29.6%; height: 59.2%; display: grid; place-items: center; font-family: var(--f-display); font-size: clamp(8px, 0.72vw, 14px); color: #f0e4cb; white-space: nowrap; text-align: center; }
 #esc .reloj { background-size: 100% 100%; background-repeat: no-repeat; display: grid; place-items: center; }
 #esc .hora { font-family: var(--f-body); font-size: clamp(11px, 1.2vw, 22px); color: #5ed3e6; white-space: nowrap; }
 #esc .burb { position: absolute; width: 270px; min-height: 120px; padding: 38px 20px 20px; background-size: 100% 100%; background-repeat: no-repeat; font-size: 22px; line-height: 1.05; color: #231914; }
@@ -1207,7 +1208,8 @@ function iniciarVistaEscritorio() {
   h('div', 'abs pix', Object.assign(rect(0.002, 0.969, 0.062, 0.035), { backgroundImage: url('e_fecha'), backgroundSize: '100% 100%' }), juego);
 
   const contador = h('div', 'abs pix contador', { left: pct(0.012), top: '0', width: pct(0.225), aspectRatio: '700 / 233', backgroundImage: url('e_contador') }, juego);
-  function mostrarRestantes() { contador.textContent = 'Ingresantes en fila: ' + partida.fila.length; }
+  const contadorTxt = h('span', 'ctxt', null, contador);
+  function mostrarRestantes() { contadorTxt.textContent = 'Ingresantes en fila: ' + partida.fila.length; }
 
   const reloj = h('div', 'abs reloj', rect(0.257, 0.91, 0.060, 0.07), juego);
   reloj.style.backgroundImage = url('e_reloj');
