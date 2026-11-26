@@ -160,6 +160,35 @@ img { display: block; }
 .fin-titulo.v { color: var(--ok); }
 .fin-titulo.d { color: var(--bad); }
 .link { background: none; border: 0; color: var(--glow); text-decoration: underline; font-size: 20px; padding: 8px 0; cursor: pointer; }
+/* ===== Modo escritorio: réplica de la ventana Swing original ===== */
+html.escritorio { padding-top: 0 !important; }
+html.escritorio, html.escritorio body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; }
+html.escritorio body > *:not(#esc):not(script) { display: none !important; }
+#esc { position: fixed; inset: 0; background: #000; overflow: hidden; user-select: none; -webkit-user-select: none; font-family: var(--f-body); color: #231914; }
+#esc .pantalla { position: absolute; inset: 0; background-size: 100% 100%; background-repeat: no-repeat; image-rendering: auto; }
+#esc .abs { position: absolute; }
+#esc .pix, #esc .pan.pix { image-rendering: pixelated; }
+#esc .bt { position: absolute; border: 0; padding: 0; margin: 0; background: transparent center / 100% 100% no-repeat; cursor: pointer; }
+#esc .bt:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
+#esc .bt:disabled { cursor: default; }
+#esc .pan { position: absolute; background-size: 100% 100%; background-repeat: no-repeat; }
+#esc .docp, #esc .libro { cursor: grab; touch-action: none; }
+#esc .docp:active, #esc .libro:active { cursor: grabbing; }
+#esc .docp img, #esc .libro img { pointer-events: none; }
+#esc .txt { position: absolute; font-size: 22px; white-space: nowrap; overflow: hidden; color: #231914; }
+#esc .libro .txt { color: #2b1a10; }
+#esc .cian { color: #5ed3e6; font-family: var(--f-body); }
+#esc .contador { position: absolute; display: grid; place-items: center; background-size: 100% 100%; font-family: var(--f-display); font-size: clamp(8px, 0.72vw, 14px); color: #f0e4cb; text-align: center; padding: 0 6% 0 8%; white-space: nowrap; }
+#esc .reloj { background-size: 100% 100%; background-repeat: no-repeat; display: grid; place-items: center; }
+#esc .hora { font-family: var(--f-body); font-size: clamp(11px, 1.2vw, 22px); color: #5ed3e6; white-space: nowrap; }
+#esc .burb { position: absolute; width: 270px; min-height: 120px; padding: 38px 20px 20px; background-size: 100% 100%; background-repeat: no-repeat; font-size: 22px; line-height: 1.05; color: #231914; }
+#esc .cartel-txt { position: absolute; white-space: pre-line; font-family: var(--f-body); font-size: 26px; line-height: 1.1; color: #d6f6ff; text-align: center; display: grid; place-items: center; }
+#esc .marca { position: absolute; display: grid; place-items: center; pointer-events: none; }
+#esc .campo-nombre { position: absolute; font: 22px var(--f-body); padding: 0 6px; border: 2px solid #3a1515; background: #ead9b2; color: #231914; }
+#esc .exito { text-align: center; font-size: 26px; color: #d6f6ff; }
+#esc .msg { position: absolute; z-index: 70; left: 50%; top: 50%; transform: translate(-50%, -50%); min-width: 320px; max-width: 520px; padding: 22px 26px; background: #ead9b2; border: 4px solid #120906; box-shadow: 0 0 0 4px #6b3a1b; color: #231914; text-align: center; font-size: 24px; }
+#esc .msg p { margin: 0 0 16px; }
+#esc .msg-ok { font: 20px var(--f-display); font-size: 13px; padding: 10px 18px; background: #c9783b; color: #1c0f08; border: 3px solid #120906; cursor: pointer; }
 </style>
 
 <div id="app">
@@ -708,6 +737,7 @@ const Sonido = (() => {
   return { efecto, iniciarMusica, detenerMusica, alternar, get activo() { return activo; } };
 })();
 
+function iniciarVistaMovil() {
 /* ======================= VISTA ======================= */
 const $ = id => document.getElementById(id);
 const partida = new Partida();
@@ -1001,6 +1031,471 @@ function finDePartida(fin) {
   }
   show($('m-fin'), true);
 }
+}
+
+/* ======================= VISTA DE ESCRITORIO =======================
+   Réplica de la interfaz Swing del juego original: una "ventana" a pantalla completa con fondo
+   estirado y botones invisibles ubicados con las mismas proporciones de pantalla que en Java.
+   Los elementos con tamaño en píxeles (documentos, carteles, diálogos) usan los mismos píxeles. */
+function iniciarVistaEscritorio() {
+  document.documentElement.classList.add('escritorio');
+  const partida = new Partida();
+  const raiz = document.createElement('div');
+  raiz.id = 'esc';
+  document.body.appendChild(raiz);
+
+  const IMG = n => 'img/' + n + '.webp';
+  const url = n => 'url(' + IMG(n) + ')';
+  const pct = v => (v * 100) + '%';
+  const rect = (x, y, w, hh) => ({ left: pct(x), top: pct(y), width: pct(w), height: pct(hh) });
+  const px = (x, y, w, hh) => ({ left: x + 'px', top: y + 'px', width: w + 'px', height: hh + 'px' });
+
+  function h(tag, clase, estilo, padre, texto) {
+    const e = document.createElement(tag);
+    if (clase) e.className = clase;
+    if (estilo) Object.assign(e.style, estilo);
+    if (texto !== undefined) e.textContent = texto;
+    if (padre) padre.appendChild(e);
+    return e;
+  }
+  // Botón con imagen estirada. "hover" reproduce el BotonInvisible de Java: la imagen aparece al pasar el mouse.
+  function boton(padre, estilo, imagen, hover, pix) {
+    const b = h('button', 'bt' + (pix ? ' pix' : ''), estilo, padre);
+    b.type = 'button';
+    if (imagen) b.style.backgroundImage = url(imagen);
+    if (hover) {
+      b.addEventListener('mouseenter', () => { b.style.backgroundImage = url(hover); });
+      b.addEventListener('mouseleave', () => { b.style.backgroundImage = 'none'; });
+      b.addEventListener('mousedown', () => { b.style.backgroundImage = 'none'; });
+    }
+    return b;
+  }
+  function pantalla(fondo) {
+    const p = h('div', 'pantalla', { backgroundImage: url(fondo) }, raiz);
+    p.hidden = true;
+    return p;
+  }
+  // Panel centrado de tamaño fijo, como los JDialog de Java.
+  function dialogo(w, hh, fondo, pix, z) {
+    const d = h('div', 'pan' + (pix ? ' pix' : ''), { width: w + 'px', height: hh + 'px', left: '50%', top: '50%',
+      transform: 'translate(-50%, -50%)', zIndex: z || 40, backgroundImage: fondo ? url(fondo) : 'none' }, raiz);
+    d.hidden = true;
+    return d;
+  }
+
+  /* ---------- Música: el mismo botón en menú, tutorial y juego ---------- */
+  const botonesMusica = [];
+  function actualizarMusica() {
+    botonesMusica.forEach(b => {
+      b.style.backgroundImage = url(Sonido.activo ? 'e_b_encendido' : 'e_b_apagado');
+      b.title = Sonido.activo ? 'Silenciar la música' : 'Activar la música';
+    });
+  }
+  function botonMusica(padre) {
+    const b = boton(padre, rect(0.89, 0.02, 0.045, 0.075));
+    botonesMusica.push(b);
+    b.addEventListener('click', () => { Sonido.alternar(); if (Sonido.activo) Sonido.iniciarMusica(); actualizarMusica(); });
+    return b;
+  }
+
+  /* ---------- Pantallas ---------- */
+  const menu = pantalla('e_menu');
+  const tut = pantalla('e_tut0');
+  const juego = pantalla('e_gameplay');
+  const fin = pantalla('e_derrota');
+  function mostrarPantalla(p) { [menu, tut, juego, fin].forEach(s => { s.hidden = s !== p; }); }
+
+  /* ---------- Cuadros de aviso ---------- */
+  const velo = h('div', 'abs', { inset: '0', zIndex: 59, background: 'transparent' }, raiz); // bloquea clics (diálogos modales)
+  velo.hidden = true;
+
+  function mensajeSimple(texto, alAceptar) { // equivale a JOptionPane.showMessageDialog
+    velo.hidden = false;
+    const caja = h('div', 'msg', null, raiz);
+    h('p', null, null, caja, texto);
+    const ok = h('button', 'msg-ok', null, caja, 'Aceptar');
+    ok.type = 'button';
+    ok.addEventListener('click', () => { caja.remove(); velo.hidden = true; if (alAceptar) alAceptar(); });
+    ok.focus();
+  }
+
+  const MENSAJES_ANUNCIO = { sello1: 'e_anuncio_sello1', sello2: 'e_anuncio_sello2', sello3: 'e_anuncio_sello3', sirena1: 'e_anuncio_sirena1' };
+  const anuncio = dialogo(450, 300, null, false, 45);
+  boton(anuncio, px(150, 230, 150, 45)).addEventListener('click', () => { anuncio.hidden = true; });
+  function mostrarAnuncio(clave) {
+    anuncio.style.backgroundImage = url(MENSAJES_ANUNCIO[clave]);
+    anuncio.hidden = false;
+  }
+
+  /* ---------- Salir ---------- */
+  function salir(desdeJuego) {
+    try { window.close(); } catch (e) {}
+    setTimeout(() => {
+      mensajeSimple('Para salir de Frontier, cerrá esta pestaña del navegador.', () => { if (desdeJuego) volverAlMenu(); });
+    }, 150);
+  }
+
+  /* ---------- Puntajes (en el navegador, en lugar de SQLite) ---------- */
+  const CLAVE_PUNTAJES = 'frontier-puntajes';
+  let puntajesMemoria = [];
+  function leerPuntajes() {
+    try { return JSON.parse(localStorage.getItem(CLAVE_PUNTAJES) || '[]'); } catch (e) { return puntajesMemoria; }
+  }
+  function guardarPuntaje(jugador, reputacion) {
+    const lista = leerPuntajes();
+    lista.push({ jugador, reputacion });
+    lista.sort((a, b) => b.reputacion - a.reputacion);
+    puntajesMemoria = lista.slice(0, 50);
+    try { localStorage.setItem(CLAVE_PUNTAJES, JSON.stringify(puntajesMemoria)); } catch (e) {}
+  }
+
+  const ranking = dialogo(600, 300, 'e_puntajes', false, 50);
+  ranking.style.cursor = 'pointer';
+  ranking.addEventListener('click', () => { ranking.hidden = true; });
+  function verPuntajes() {
+    ranking.querySelectorAll('.txt').forEach(e => e.remove());
+    const lista = leerPuntajes().sort((a, b) => b.reputacion - a.reputacion).slice(0, 5);
+    lista.forEach((p, i) => {
+      const y = 110 + i * 33;
+      [[String(i + 1), 40, 80], [p.jugador, 180, 180], [String(p.reputacion), 420, 120]].forEach(([t, x, w]) => {
+        h('div', 'txt cian', { left: x + 'px', top: y + 'px', width: w + 'px', height: '30px', lineHeight: '30px', fontSize: '16px', textAlign: 'center' }, ranking, t);
+      });
+    });
+    ranking.hidden = false;
+  }
+
+  /* ---------- Menú principal ---------- */
+  boton(menu, rect(0.382, 0.68, 0.10, 0.07), 'e_b_jugar').addEventListener('click', iniciarJuego);
+  // En el juego original la X del botón Tutorial y Puntajes usa la altura de pantalla (se conserva igual).
+  boton(menu, { left: '91.6vh', top: pct(0.68), width: pct(0.10), height: pct(0.07) }, 'e_b_tutorial').addEventListener('click', abrirTutorial);
+  boton(menu, rect(0.94, 0.02, 0.045, 0.075), 'e_b_cruz').addEventListener('click', () => salir(false));
+  boton(menu, { left: '80vh', top: pct(0.75), width: pct(0.10), height: pct(0.07) }, 'e_b_puntajes').addEventListener('click', verPuntajes);
+  botonMusica(menu);
+
+  /* ---------- Tutorial ---------- */
+  let pagina = 0;
+  const TOTAL_PAGINAS = 8;
+  const tVolver = boton(tut, rect(0.05, 0.90, 0.10, 0.07), 'e_b_volver');
+  const tAnterior = boton(tut, rect(0.175, 0.44, 0.12, 0.12), 'e_b_flecha_ant');
+  const tSiguiente = boton(tut, rect(0.705, 0.44, 0.12, 0.12), 'e_b_flecha_sig');
+  botonMusica(tut);
+  function actualizarPagina() {
+    tut.style.backgroundImage = url('e_tut' + pagina);
+    tAnterior.hidden = pagina === 0;
+    tSiguiente.hidden = pagina === TOTAL_PAGINAS - 1;
+  }
+  function abrirTutorial() { pagina = 0; actualizarPagina(); mostrarPantalla(tut); }
+  tVolver.addEventListener('click', () => mostrarPantalla(menu));
+  tAnterior.addEventListener('click', () => { if (pagina > 0) { pagina--; actualizarPagina(); } });
+  tSiguiente.addEventListener('click', () => { if (pagina < TOTAL_PAGINAS - 1) { pagina++; actualizarPagina(); } });
+
+  /* ---------- Juego: escenario ---------- */
+  const ventanilla = h('div', 'abs', rect(0.073, 0.319, 0.168, 0.338), juego);
+  const imgNpc = h('img', 'abs', { left: '0', top: '0', width: '100%', height: '100%' }, ventanilla);
+  imgNpc.alt = ''; imgNpc.hidden = true;
+  const mesa = h('div', 'abs', Object.assign(rect(0.337, 0.35, 0.66, 0.65), { overflow: 'hidden', zIndex: 1, isolation: 'isolate' }), juego);
+
+  const bDecidir = boton(juego, rect(0.2237, 0.662, 0.09, 0.199), null, 'e_b_sello_sel');
+  const bLlamar = boton(juego, rect(0.2765, 0.18, 0.0607, 0.105), null, 'e_b_llamar_seleccionado');
+  const bLibro = boton(juego, rect(0.198, 0.868, 0.055, 0.115), null, 'libro_cerrado');
+  const bInterrogar = boton(juego, rect(0.13, 0.84, 0.0539, 0.106), null, 'e_b_interrogar');
+  const bDocumentos = boton(juego, rect(0.073, 0.72, 0.078, 0.10), 'e_b_documentos_ingresante', null, true);
+  bDocumentos.hidden = true;
+  [bDecidir, bLlamar, bLibro, bInterrogar, bDocumentos].forEach((b, i) => { b.title = ['Sello', 'Megáfono', 'Libro de reglas', 'Interrogar', 'Pedir documentos'][i]; b.setAttribute('aria-label', b.title); });
+  const bSalir = boton(juego, rect(0.94, 0.02, 0.045, 0.075), 'e_b_cruz', null, true);
+  botonMusica(juego);
+  h('div', 'abs pix', Object.assign(rect(0.002, 0.969, 0.062, 0.035), { backgroundImage: url('e_fecha'), backgroundSize: '100% 100%' }), juego);
+
+  const contador = h('div', 'abs pix contador', { left: pct(0.012), top: '0', width: pct(0.225), aspectRatio: '700 / 233', backgroundImage: url('e_contador') }, juego);
+  function mostrarRestantes() { contador.textContent = 'Ingresantes en fila: ' + partida.fila.length; }
+
+  const reloj = h('div', 'abs reloj', rect(0.257, 0.91, 0.060, 0.07), juego);
+  reloj.style.backgroundImage = url('e_reloj');
+  const horaTxt = h('div', 'hora', null, reloj, '00:00:00');
+  setInterval(() => {
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    horaTxt.textContent = p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }, 1000);
+
+  /* ---------- Mesa: documentos y libro arrastrables ---------- */
+  let zArriba = 2000, zAbajo = 1000; // en un JLayeredPane lo primero que se agrega queda arriba
+  function arrastrable(el) {
+    let id = null, sx = 0, sy = 0, ox = 0, oy = 0, movido = false;
+    el.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      id = e.pointerId; el.setPointerCapture(id); movido = false;
+      el.style.zIndex = ++zArriba;
+      sx = e.clientX; sy = e.clientY; ox = el.offsetLeft; oy = el.offsetTop;
+      Sonido.efecto('agarrar'); e.preventDefault();
+    });
+    el.addEventListener('pointermove', e => {
+      if (id !== e.pointerId) return;
+      const p = el.parentElement;
+      const nx = Math.max(0, Math.min(ox + e.clientX - sx, p.clientWidth - el.offsetWidth));
+      const ny = Math.max(0, Math.min(oy + e.clientY - sy, p.clientHeight - el.offsetHeight));
+      if (nx !== el.offsetLeft || ny !== el.offsetTop) movido = true;
+      el.style.left = nx + 'px'; el.style.top = ny + 'px';
+    });
+    const soltar = e => { if (id !== e.pointerId) return; id = null; if (movido) Sonido.efecto('soltar'); };
+    el.addEventListener('pointerup', soltar);
+    el.addEventListener('pointercancel', soltar);
+  }
+  // Si la fuente no carga o el texto no entra en su casillero, se achica hasta que entre.
+  function ajustar(el) {
+    el.querySelectorAll('.txt').forEach(t => {
+      t.style.fontSize = '';
+      const ancho = t.clientWidth, real = t.scrollWidth;
+      if (ancho > 0 && real > ancho + 1) t.style.fontSize = Math.max(10, Math.floor(22 * ancho / real)) + 'px';
+    });
+  }
+  function agregarAMesa(el) { el.style.zIndex = zAbajo--; mesa.appendChild(el); ajustar(el); }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => mesa.querySelectorAll('.pan').forEach(ajustar));
+
+  function crearDocumento(doc, x, y) {
+    const v = doc.vista();
+    const d = h('div', 'pan docp', px(x, y, v.w, v.h), null);
+    d.style.backgroundImage = 'url(img/' + v.fondo + ')';
+    d.dataset.tipo = doc instanceof Pasaporte ? 'Pasaporte' : 'otro';
+    v.items.forEach(it => {
+      const hh = it.h || 20;
+      if (it.img) { const im = h('img', 'abs', px(it.x, it.y, it.w, hh), d); im.src = 'img/' + it.img; im.alt = ''; im.draggable = false; }
+      else h('div', 'txt', Object.assign(px(it.x, it.y, it.w, hh), { lineHeight: hh + 'px' }), d, it.t);
+    });
+    arrastrable(d);
+    return d;
+  }
+  function desplegarDocumentos() {
+    let x = 30, y = 30;
+    partida.actual.documentos.forEach(doc => { agregarAMesa(crearDocumento(doc, x, y)); x += 60; y += 20; });
+    restaurarLibro();
+  }
+  function limpiarMesa() { mesa.querySelectorAll('.docp').forEach(d => d.remove()); }
+
+  // Libro de reglas: panel de 450x435 (la imagen se estira igual que en Java)
+  let libroEl = null;
+  function abrirLibro() {
+    const L = h('div', 'pan libro', px(20, 20, 450, 435), null);
+    L.style.backgroundImage = url('libro_abierto');
+    partida.reglas.reglasDetalladas.forEach((t, i) => {
+      h('div', 'txt', Object.assign(px(96, 80 + i * 25, 350, 25), { fontSize: '18px', lineHeight: '25px' }), L, t);
+    });
+    arrastrable(L);
+    libroEl = L;
+    agregarAMesa(L);
+  }
+  function cerrarLibro() { if (libroEl) { libroEl.remove(); libroEl = null; } }
+  function restaurarLibro() { if (libroEl && libroEl.parentElement !== mesa) agregarAMesa(libroEl); }
+  function alternarLibro() { if (libroEl) cerrarLibro(); else abrirLibro(); Sonido.efecto('libro'); }
+
+  /* ---------- Ventanilla ---------- */
+  function mostrarIngresante() { imgNpc.src = IMG(partida.actual.imagen.replace('.webp', '')); imgNpc.hidden = false; }
+  function limpiarVentanilla() { imgNpc.hidden = true; imgNpc.removeAttribute('src'); }
+
+  /* ---------- Interrogatorio: dos globos de diálogo que se ocultan a los 4 s ---------- */
+  const capaDialogos = h('div', 'abs', { inset: '0', pointerEvents: 'none', zIndex: 30 }, juego);
+  function globo(estilo) {
+    const g = h('div', 'burb', Object.assign({ backgroundImage: url('e_dialogo') }, estilo), capaDialogos);
+    g.hidden = true;
+    g._t = h('div', null, { width: '230px' }, g);
+    return g;
+  }
+  const globoNpc = globo({ left: '0', top: pct(0.35) });
+  const globoJugador = globo({ left: pct(0.18), top: pct(0.30) });
+  let timerGlobos = null;
+  function mostrarInterrogatorio(texto) {
+    const partes = texto.split('\n');
+    globoJugador._t.textContent = partes[0];
+    if (partes.length >= 2) { globoNpc._t.textContent = partes[1]; globoNpc.hidden = false; } else globoNpc.hidden = true;
+    globoJugador.hidden = false;
+    bInterrogar.disabled = true;
+    clearTimeout(timerGlobos);
+    timerGlobos = setTimeout(() => { ocultarGlobos(); bInterrogar.disabled = false; }, 4000);
+  }
+  function ocultarGlobos() { globoNpc.hidden = true; globoJugador.hidden = true; }
+
+  /* ---------- Decisión (sello), animación y cartel de reputación ---------- */
+  const decision = dialogo(620, 277, 'e_tabla', true, 40);
+  const dAceptar = boton(decision, px(64, 106, 200, 65), 'e_b_aceptar');
+  const dRechazar = boton(decision, px(270, 106, 200, 65), 'e_b_rechazar');
+  const dVolver = boton(decision, px(476, 120, 80, 37), 'e_b_volver');
+
+  const cartel = dialogo(650, 432, 'e_cartel', true, 41);
+  const cartelTxt = h('div', 'cartel-txt', px(230, 115, 335, 172), cartel);
+  const cAceptar = boton(cartel, px(222, 282, 205, 70), 'e_b_aceptar');
+  let finPendiente = null;
+
+  function animarSello(aceptado, alTerminar) {
+    const W = raiz.clientWidth, H = raiz.clientHeight;
+    const ancho = 250, alto = 350;
+    // Documento principal: el pasaporte o, si no hay, el que quedó más abajo.
+    const hijos = Array.from(mesa.children).filter(c => c.classList.contains('pan')).sort((a, b) => b.style.zIndex - a.style.zIndex);
+    let objetivo = null;
+    for (const c of hijos) { if (c.dataset.tipo === 'Pasaporte') { objetivo = c; break; } objetivo = c; }
+    let xD, yD;
+    if (objetivo) {
+      xD = Math.floor(W * 0.337) + objetivo.offsetLeft + objetivo.offsetWidth / 2 - ancho / 2 + 50;
+      yD = Math.floor(H * 0.35) + objetivo.offsetTop + objetivo.offsetHeight / 2 - alto / 2 + 50;
+    } else { xD = W * 0.40; yD = H * 0.35; }
+    const yI = -alto;
+    const mano = h('img', 'abs', Object.assign(px(xD, yI, ancho, alto), { zIndex: 35, pointerEvents: 'none' }), juego);
+    mano.src = IMG('e_mano'); mano.alt = '';
+    let f = 0;
+    const BAJADA = 12, PAUSA = 15, SUBIDA = 10;
+    const t = setInterval(() => {
+      f++;
+      if (f < BAJADA) {
+        mano.style.top = (yI + (yD - yI) * (f / BAJADA)) + 'px';
+      } else if (f === BAJADA) {
+        Sonido.efecto('sello');
+        if (objetivo) {
+          const marca = h('div', 'marca', px(objetivo.offsetWidth / 2 - 60, objetivo.offsetHeight / 2 + 50, 120, 120), objetivo);
+          const im = h('img', null, { width: '200px', height: '200px', flex: 'none' }, marca);
+          im.src = IMG(aceptado ? 'e_sello_verde' : 'e_sello_rojo'); im.alt = '';
+        }
+      } else if (f <= BAJADA + PAUSA) {
+        /* pausa con el sello apoyado */
+      } else if (f <= BAJADA + PAUSA + SUBIDA) {
+        mano.style.top = (yD - 200 * ((f - BAJADA - PAUSA) / SUBIDA)) + 'px';
+      } else {
+        clearInterval(t); mano.remove();
+        alTerminar();
+      }
+    }, 20);
+  }
+
+  function procesarDecision(acepta) {
+    decision.hidden = true;
+    animarSello(acepta, () => {
+      const res = partida.decidir(acepta);
+      if (!res) return;
+      // actualizarVeredicto
+      limpiarMesa(); cerrarLibro(); limpiarVentanilla(); bDocumentos.hidden = true;
+      const msg = res.acierto
+        ? '¡Decisión correcta!\nReputación: ' + res.reputacion
+        : '¡Penalización!\n' + res.motivo + '\nReputación: ' + res.reputacion;
+      cartelTxt.textContent = msg;
+      cartel.hidden = false;
+      Sonido.efecto(res.acierto ? 'acierto' : 'error');
+      if (res.fin) finPendiente = res.fin;
+    });
+  }
+  dAceptar.addEventListener('click', () => procesarDecision(true));
+  dRechazar.addEventListener('click', () => procesarDecision(false));
+  dVolver.addEventListener('click', () => { decision.hidden = true; partida.cancelarDecision(); });
+
+  /* ---------- Fin de partida ---------- */
+  const fGuardar = boton(fin, rect(0.45, 0.718, 0.10, 0.07), 'e_b_guardar_puntaje', null, true);
+  const fVolver = boton(fin, rect(0.45, 0.81, 0.10, 0.07), 'e_b_volver_menu', null, true);
+  cAceptar.addEventListener('click', () => {
+    cartel.hidden = true;
+    if (finPendiente) {
+      const resultado = finPendiente; finPendiente = null;
+      decision.hidden = true; cerrarLibro(); ocultarGlobos(); anuncio.hidden = true;
+      fin.style.backgroundImage = url(resultado === 'VICTORIA' ? 'e_victoria' : 'e_derrota');
+      mostrarPantalla(fin);
+      Sonido.efecto(resultado === 'VICTORIA' ? 'victoria' : 'derrota');
+    }
+  });
+  fVolver.addEventListener('click', volverAlMenu);
+
+  const nombreDlg = dialogo(600, 200, 'e_nombre', false, 60);
+  const campoNombre = h('input', 'campo-nombre', px(200, 75, 250, 30), nombreDlg);
+  campoNombre.type = 'text'; campoNombre.maxLength = 20; campoNombre.setAttribute('aria-label', 'Nombre del jugador');
+  const nAceptar = boton(nombreDlg, px(150, 130, 100, 40), 'e_b_aceptar');
+  const nCancelar = boton(nombreDlg, px(350, 130, 100, 40), 'e_b_cancelar');
+  const exitoDlg = dialogo(700, 350, 'e_cartel', false, 61);
+  h('div', 'txt exito', px(250, 150, 350, 30), exitoDlg, '¡Puntaje guardado con éxito!');
+  const eAceptar = boton(exitoDlg, px(240, 230, 220, 55));
+  function cerrarModal(d) { d.hidden = true; velo.hidden = true; }
+  fGuardar.addEventListener('click', () => { campoNombre.value = ''; velo.hidden = false; nombreDlg.hidden = false; campoNombre.focus(); });
+  nCancelar.addEventListener('click', () => cerrarModal(nombreDlg));
+  function aceptarNombre() {
+    const nombre = campoNombre.value.trim();
+    cerrarModal(nombreDlg);
+    if (nombre) { guardarPuntaje(nombre, partida.gestor.reputacion); velo.hidden = false; exitoDlg.hidden = false; }
+  }
+  nAceptar.addEventListener('click', aceptarNombre);
+  campoNombre.addEventListener('keydown', e => { if (e.key === 'Enter') aceptarNombre(); if (e.key === 'Escape') cerrarModal(nombreDlg); });
+  eAceptar.addEventListener('click', () => cerrarModal(exitoDlg));
+
+  /* ---------- Controlador: mismas reglas de estado y avisos que ControladorJuego ---------- */
+  const SIRENA = 'No puedes llamar a otro ingresante mientras ya hay uno en ventanilla.';
+  const ERRORES = {
+    LLAMADO: { sello: 'No hay ningún ingresante en la ventanilla. Primero debes llamar a uno con el megáfono.', interrogar: 'No hay ningún ingresante en la ventanilla al que interrogar.' },
+    INTERROGATORIO: { sello: 'Primero debes interrogar al ingresante y solicitar sus documentos', llamar: SIRENA },
+    DOCUMENTOS: { sello: 'No puede usar el sello sin solicitar documentos primero.', llamar: SIRENA },
+    ATENDIENDO: { llamar: SIRENA },
+    SELLO: { llamar: 'No puedes llamar a otro ingresante mientras hay una decisión pendiente.', sello: 'El sello ya está abierto. Debes aceptar o rechazar al ingresante.', interrogar: 'Cierra el panel de decisión (sello) primero si deseas seguir interrogando.' }
+  };
+  function manejarError(accion) {
+    const mensaje = (ERRORES[partida.estado] || {})[accion] || 'La partida ha finalizado.';
+    if (mensaje.includes('Primero debes llamar a uno con el meg') || mensaje.includes('No hay ning')) mostrarAnuncio('sello1');
+    else if (mensaje.includes('sin solicitar documentos primero')) mostrarAnuncio('sello2');
+    else if (mensaje.includes('mientras ya hay uno en ventanilla') || mensaje.includes('Ya hay un ingresante')) mostrarAnuncio('sirena1');
+    else if (mensaje.includes('Primero debes interrogar al ingresante')) mostrarAnuncio('sello3');
+    else mensajeSimple(mensaje);
+  }
+
+  bLlamar.addEventListener('click', () => {
+    if (!partida.llamar()) return manejarError('llamar');
+    Sonido.efecto('llamar');
+    bDocumentos.hidden = true; limpiarMesa(); ocultarGlobos(); bInterrogar.disabled = false;
+    mostrarRestantes(); mostrarIngresante(); restaurarLibro();
+  });
+  bLibro.addEventListener('click', alternarLibro);
+  bInterrogar.addEventListener('click', () => {
+    const estadoPrevio = partida.estado;
+    const nuevo = partida.interrogar();
+    if (nuevo === null) return manejarError('interrogar');
+    const respuesta = nuevo;
+    const texto = estadoPrevio === 'ATENDIENDO'
+      ? '- Inspector: ¿A qué se debe su visita?\n- Ingresante: ' + respuesta
+      : '- Inspector: ¿A qué se debe su visita?\n' + respuesta;
+    if (estadoPrevio === 'INTERROGATORIO') bDocumentos.hidden = false; // recién ahora se pueden pedir los documentos
+    Sonido.efecto('hablar');
+    mostrarInterrogatorio(texto);
+  });
+  bDocumentos.addEventListener('click', () => {
+    if (!partida.solicitarDocumentos()) return;
+    Sonido.efecto('papeles');
+    desplegarDocumentos();
+    bDocumentos.hidden = true;
+  });
+  bDecidir.addEventListener('click', () => {
+    if (!partida.abrirSello()) return manejarError('sello');
+    Sonido.efecto('clic');
+    decision.hidden = false;
+  });
+  bSalir.addEventListener('click', () => salir(true));
+
+  /* ---------- Flujo general ---------- */
+  function iniciarJuego() {
+    partida.iniciar();
+    limpiarMesa(); cerrarLibro(); limpiarVentanilla(); ocultarGlobos();
+    bDocumentos.hidden = true; bInterrogar.disabled = false;
+    [decision, cartel, anuncio].forEach(d => { d.hidden = true; });
+    finPendiente = null;
+    mostrarRestantes();
+    mostrarPantalla(juego);
+  }
+  function volverAlMenu() {
+    [decision, cartel, anuncio, ranking].forEach(d => { d.hidden = true; });
+    mostrarPantalla(menu);
+  }
+
+  raiz.addEventListener('click', e => { if (e.target.closest('.bt')) Sonido.efecto('clic'); });
+  raiz.addEventListener('pointerdown', () => { Sonido.iniciarMusica(); }, { once: true }); // el navegador exige un gesto antes de reproducir audio
+  actualizarMusica();
+  mostrarPantalla(menu);
+}
+
+function esEscritorio() {
+  const forzado = new URLSearchParams(location.search).get('modo');
+  if (forzado === 'escritorio') return true;
+  if (forzado === 'movil') return false;
+  return window.matchMedia('(min-width: 900px) and (hover: hover) and (pointer: fine)').matches;
+}
+if (esEscritorio()) iniciarVistaEscritorio(); else iniciarVistaMovil();
+
 </script>
-</body>
-</html>
+
