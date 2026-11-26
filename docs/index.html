@@ -1166,10 +1166,10 @@ function iniciarVistaEscritorio() {
 
   /* ---------- Menú principal ---------- */
   boton(menu, rect(0.382, 0.68, 0.10, 0.07), 'e_b_jugar').addEventListener('click', iniciarJuego);
-  // En el juego original la X del botón Tutorial y Puntajes usa la altura de pantalla (se conserva igual).
-  boton(menu, { left: '91.6vh', top: pct(0.68), width: pct(0.10), height: pct(0.07) }, 'e_b_tutorial').addEventListener('click', abrirTutorial);
+  // Posiciones en fracción del ancho, para que sigan alineadas con el fondo en cualquier proporción de ventana.
+  boton(menu, rect(0.515, 0.68, 0.10, 0.07), 'e_b_tutorial').addEventListener('click', abrirTutorial);
   boton(menu, rect(0.94, 0.02, 0.045, 0.075), 'e_b_cruz').addEventListener('click', () => salir(false));
-  boton(menu, { left: '80vh', top: pct(0.75), width: pct(0.10), height: pct(0.07) }, 'e_b_puntajes').addEventListener('click', verPuntajes);
+  boton(menu, rect(0.45, 0.75, 0.10, 0.07), 'e_b_puntajes').addEventListener('click', verPuntajes);
   botonMusica(menu);
 
   /* ---------- Tutorial ---------- */
