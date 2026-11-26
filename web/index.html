@@ -1,0 +1,793 @@
+<title>Frontier</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
+<style>
+/* Layout: una sola columna de ancho móvil. Escena de la frontera arriba, ventanilla con el ingresante,
+   cuatro acciones y la mesa de documentos como carrusel horizontal. Paleta de madera oscura, cobre y cian de runa. */
+:root {
+  --wood: #1c120e;
+  --wood-2: #2b1b14;
+  --wood-3: #3b261b;
+  --copper: #c9783b;
+  --copper-dk: #6b3a1b;
+  --glow: #5ed3e6;
+  --paper: #ead9b2;
+  --ink: #3a1515;
+  --text: #f0e4cb;
+  --muted: #b39e86;
+  --ok: #74d27f;
+  --bad: #ea5f50;
+  --f-display: 'Press Start 2P', 'Courier New', monospace;
+  --f-body: 'VT323', 'Courier New', monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--wood);
+  color: var(--text);
+  font-family: var(--f-body);
+  font-size: 21px;
+  line-height: 1.25;
+  padding-block: 0 24px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+#app { max-width: 520px; margin: 0 auto; }
+h1, h2, h3 { font-family: var(--f-display); font-weight: 400; margin: 0; text-wrap: balance; }
+button { font: inherit; color: inherit; }
+img { display: block; }
+
+/* Botones */
+.btn {
+  min-height: 48px;
+  padding: 10px 14px;
+  background: var(--copper);
+  color: #1c0f08;
+  border: 3px solid #120906;
+  box-shadow: 0 4px 0 var(--copper-dk);
+  font-family: var(--f-display);
+  font-size: 11px;
+  letter-spacing: .03em;
+  cursor: pointer;
+  text-align: center;
+}
+.btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 var(--copper-dk); }
+.btn:disabled { background: var(--wood-3); color: #7b6a5a; box-shadow: 0 4px 0 #20130d; cursor: not-allowed; }
+.btn:focus-visible, .link:focus-visible { outline: 3px solid var(--glow); outline-offset: 2px; }
+.btn.ghost { background: transparent; color: var(--text); border-color: var(--copper); box-shadow: none; }
+.btn.ok { background: var(--ok); box-shadow: 0 4px 0 #2f6b37; }
+.btn.bad { background: var(--bad); box-shadow: 0 4px 0 #7b2a21; }
+
+/* Menú */
+.banner { width: 100%; aspect-ratio: 1000 / 320; object-fit: cover; image-rendering: pixelated; border-bottom: 4px solid var(--copper); }
+.titulo { padding: 28px 0 8px; text-align: center; font-size: 30px; color: var(--glow); text-shadow: 3px 3px 0 #0d2a30; letter-spacing: .04em; }
+.sub { text-align: center; color: var(--muted); font-size: 22px; margin: 0 0 24px; }
+.menu-btns { display: grid; gap: 14px; }
+.panel { background: var(--wood-2); border: 3px solid var(--copper-dk); padding: 14px 16px; margin-top: 22px; }
+.panel h3 { font-size: 11px; color: var(--copper); margin-bottom: 10px; }
+.panel ol, .panel ul { margin: 0; padding-left: 22px; }
+.panel li { margin: 4px 0; }
+
+/* HUD */
+.hud { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center; padding: 12px 0; }
+.rep { display: flex; gap: 3px; }
+.rep i { flex: 1; height: 14px; background: #120906; border: 2px solid #120906; }
+.rep i.on { background: var(--glow); box-shadow: inset 0 -4px 0 #2b9fb2; }
+.rep.low i.on { background: var(--bad); box-shadow: inset 0 -4px 0 #8c2f26; }
+.hud .lbl { font-family: var(--f-display); font-size: 9px; color: var(--muted); }
+.hud .val { font-size: 24px; text-align: right; font-variant-numeric: tabular-nums; }
+.hud .fecha { grid-column: 1 / -1; display: flex; justify-content: space-between; color: var(--muted); font-size: 20px; }
+
+/* Ventanilla */
+.escena { position: relative; border: 3px solid var(--copper-dk); background: #120906; }
+.escena .banner { border: 0; aspect-ratio: 1000 / 320; }
+.ventanilla { display: grid; place-items: end center; min-height: 300px; padding: 12px; background:
+  linear-gradient(var(--wood-2), var(--wood-3)); border: 3px solid var(--copper-dk); border-top: 0; position: relative; overflow: hidden; }
+.sprite { height: 270px; width: auto; max-width: 100%; object-fit: contain; image-rendering: pixelated; }
+.sprite.entra { animation: entra .45s ease-out; }
+.vacio { align-self: center; color: var(--muted); font-size: 22px; text-align: center; padding: 0 20px; }
+.sello-anim { position: absolute; width: 130px; right: 12px; top: 12px; image-rendering: pixelated; animation: golpe .5s ease-out; }
+.etiqueta { position: absolute; left: 10px; top: 10px; background: #120906; border: 2px solid var(--copper); padding: 2px 8px; font-size: 19px; }
+@keyframes entra { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes golpe { from { transform: scale(2.2); opacity: 0; } to { transform: none; opacity: .95; } }
+@media (prefers-reduced-motion: reduce) { .sprite.entra, .sello-anim { animation: none; } }
+
+.dialogo { margin-top: 12px; min-height: 92px; background: #120906; border: 3px solid var(--copper); padding: 10px 14px; white-space: pre-line; }
+.dialogo .insp { color: var(--glow); }
+.dialogo.ok { border-color: var(--ok); }
+.dialogo.bad { border-color: var(--bad); }
+.dialogo strong { font-weight: 400; }
+
+.acciones { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+.pista { color: var(--muted); font-size: 19px; margin: 12px 0 0; min-height: 24px; }
+
+/* Mesa */
+.mesa { margin-top: 20px; }
+.mesa h2 { font-size: 11px; color: var(--copper); margin-bottom: 10px; }
+.carrusel { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 10px; -webkit-overflow-scrolling: touch; }
+.doc { flex: 0 0 min(88%, 400px); scroll-snap-align: center; background: var(--paper); color: var(--ink);
+  border: 4px solid #5a1f1f; padding: 10px 12px 12px; min-width: 0; }
+.doc h3 { font-size: 10px; line-height: 1.5; color: #5a1f1f; text-align: center; border-bottom: 3px double #5a1f1f; padding-bottom: 8px; }
+.doc .cuerpo { display: grid; grid-template-columns: 84px 1fr; gap: 10px; margin-top: 10px; align-items: start; }
+.doc .fotos { display: grid; gap: 8px; }
+.doc .fotos img { width: 100%; height: 96px; object-fit: cover; border: 3px solid #5a1f1f; background: #8a8a8a; }
+.doc .fotos img.hue { object-fit: contain; background: #d8c79b; height: 64px; }
+.doc .fotos small { font-family: var(--f-display); font-size: 7px; color: #5a1f1f; margin-top: -4px; }
+.doc dl { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+.doc dt { color: #7a3a3a; font-size: 15px; text-transform: uppercase; margin-top: 5px; line-height: 1; }
+.doc dd { margin: 0; font-size: 23px; line-height: 1.05; overflow-wrap: anywhere; }
+.doc.solo .cuerpo { grid-template-columns: 1fr; }
+.doc.solo dl { grid-template-columns: 1fr 1fr; column-gap: 12px; }
+.vacia { color: var(--muted); padding: 14px 0; }
+.nota { color: var(--muted); font-size: 18px; margin: 0; text-align: center; }
+
+/* Modales */
+.modal { position: fixed; inset: 0; z-index: 20; background: rgba(8, 4, 2, .84); display: grid; place-items: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); overflow-y: auto; }
+.modal .caja { width: min(100%, 460px); background: var(--wood-2); border: 4px solid var(--copper); padding: 18px; }
+.modal h2 { font-size: 13px; color: var(--glow); margin-bottom: 12px; line-height: 1.5; }
+.modal .fila { display: grid; gap: 12px; margin-top: 16px; }
+.libro { background: #3a2018; border: 3px solid #1a0b07; padding: 12px 14px; }
+.libro p { margin: 0 0 6px; }
+.libro .dia { font-family: var(--f-display); font-size: 10px; color: var(--copper); margin-bottom: 8px; line-height: 1.6; }
+.libro .regla { font-size: 24px; color: var(--paper); }
+.sellos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.sellos button { display: grid; gap: 6px; justify-items: center; padding: 12px 6px; background: var(--wood-3); border: 3px solid #120906; cursor: pointer; font-family: var(--f-display); font-size: 11px; }
+.sellos button img { width: 76px; height: 88px; object-fit: contain; image-rendering: pixelated; }
+.sellos button:focus-visible { outline: 3px solid var(--glow); outline-offset: 2px; }
+.sellos button:active { transform: translateY(2px); }
+.sellos .si { color: var(--ok); }
+.sellos .no { color: var(--bad); }
+.fin-titulo { font-size: 18px; line-height: 1.5; margin-bottom: 12px; }
+.fin-titulo.v { color: var(--ok); }
+.fin-titulo.d { color: var(--bad); }
+.link { background: none; border: 0; color: var(--glow); text-decoration: underline; font-size: 20px; padding: 8px 0; cursor: pointer; }
+</style>
+
+<div id="app">
+
+  <!-- MENÚ -->
+  <section id="menu">
+    <img class="banner" src="img/escena.webp" alt="Puerta fortificada de la frontera, con guardias y una fila de viajeros">
+    <h1 class="titulo">FRONTIER</h1>
+    <p class="sub">Sos el inspector de la frontera. Revisá los papeles y decidí quién pasa.</p>
+    <div class="menu-btns">
+      <button class="btn" id="btn-jugar" type="button">JUGAR</button>
+      <button class="btn ghost" id="btn-como" type="button">CÓMO SE JUEGA</button>
+    </div>
+    <div class="panel" id="como" hidden>
+      <h3>CÓMO SE JUEGA</h3>
+      <ol>
+        <li>Tocá <b>Llamar</b> para que pase el próximo ingresante.</li>
+        <li><b>Interrogalo</b> y pedile los <b>documentos</b>.</li>
+        <li>Compará los papeles con las <b>Reglas</b> del día.</li>
+        <li>Abrí el <b>Sello</b> y aceptá o rechazá.</li>
+      </ol>
+      <p class="nota" style="margin-top:10px;text-align:left">Acertar suma 1 de reputación. Equivocarte resta 3. Si llegás a 0 te despiden. Si atendés a los 10 ingresantes, ganás.</p>
+    </div>
+    <p class="nota" style="margin-top:24px">Versión web del trabajo final de POO.</p>
+  </section>
+
+  <!-- JUEGO -->
+  <section id="juego" hidden>
+    <div class="hud">
+      <div>
+        <div class="lbl">REPUTACIÓN</div>
+        <div class="rep" id="rep" aria-label="Reputación"></div>
+      </div>
+      <div>
+        <div class="lbl" style="text-align:right">EN FILA</div>
+        <div class="val" id="fila">10</div>
+      </div>
+      <div class="fecha"><span id="fecha"></span><span id="dia"></span></div>
+    </div>
+
+    <div class="escena"><img class="banner" src="img/escena.webp" alt="Puerta de la frontera"></div>
+    <div class="ventanilla" id="ventanilla"></div>
+    <div class="dialogo" id="dialogo" aria-live="polite"></div>
+
+    <div class="acciones">
+      <button class="btn" id="a-llamar" type="button">LLAMAR</button>
+      <button class="btn" id="a-interrogar" type="button">INTERROGAR</button>
+      <button class="btn" id="a-docs" type="button">DOCUMENTOS</button>
+      <button class="btn" id="a-sello" type="button">SELLO</button>
+    </div>
+    <p class="pista" id="pista"></p>
+    <button class="btn ghost" id="a-reglas" type="button" style="width:100%;margin-top:10px">LIBRO DE REGLAS</button>
+
+    <div class="mesa" id="mesa" hidden>
+      <h2>MESA</h2>
+      <div class="carrusel" id="carrusel"></div>
+      <p class="nota">Deslizá para ver todos los documentos.</p>
+    </div>
+    <button class="link" id="a-salir" type="button" style="margin-top:12px">Volver al menú</button>
+  </section>
+</div>
+
+<!-- Reglas -->
+<div class="modal" id="m-reglas" hidden role="dialog" aria-modal="true" aria-labelledby="t-reglas">
+  <div class="caja">
+    <h2 id="t-reglas">LIBRO DE REGLAS</h2>
+    <div class="libro" id="reglas-dia"></div>
+    <div class="panel" style="margin-top:14px">
+      <h3>REGLAS FIJAS</h3>
+      <ul>
+        <li>Todos necesitan DNI.</li>
+        <li>Turistas y trabajadores: también pasaporte.</li>
+        <li>Trabajadores: además permiso de entrada.</li>
+        <li>Nombre, origen, DNI y raza deben coincidir entre los papeles y con la persona.</li>
+        <li>Nada vencido. Nadie nació después de la fecha de hoy.</li>
+        <li>Rechazá a toda amenaza.</li>
+      </ul>
+    </div>
+    <div class="fila"><button class="btn" id="c-reglas" type="button">CERRAR</button></div>
+  </div>
+</div>
+
+<!-- Sello -->
+<div class="modal" id="m-sello" hidden role="dialog" aria-modal="true" aria-labelledby="t-sello">
+  <div class="caja">
+    <h2 id="t-sello">¿QUÉ DECIDÍS?</h2>
+    <div class="sellos">
+      <button type="button" id="d-aceptar" class="si"><img src="img/sello_verde.webp" alt="">ACEPTAR</button>
+      <button type="button" id="d-rechazar" class="no"><img src="img/sello_rojo.webp" alt="">RECHAZAR</button>
+    </div>
+    <div class="fila"><button class="btn ghost" id="d-cancelar" type="button">CANCELAR</button></div>
+  </div>
+</div>
+
+<!-- Fin de partida -->
+<div class="modal" id="m-fin" hidden role="dialog" aria-modal="true" aria-labelledby="t-fin">
+  <div class="caja">
+    <h2 class="fin-titulo" id="t-fin"></h2>
+    <p id="fin-texto" style="margin:0"></p>
+    <div class="fila">
+      <button class="btn" id="f-otra" type="button">JUGAR OTRA VEZ</button>
+      <button class="btn ghost" id="f-menu" type="button">MENÚ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ======================= MODELO (port de las clases Java) ======================= */
+
+// Fechas como número AAAAMMDD para compararlas sin libreras.
+const D = (y, m, d) => y * 10000 + m * 100 + d;
+const fmtFecha = n => {
+  const y = Math.floor(n / 10000), m = Math.floor(n / 100) % 100, d = n % 100;
+  return String(d).padStart(2, '0') + '/' + String(m).padStart(2, '0') + '/' + y;
+};
+
+const NOMBRE_RAZA = { HUMANO: 'Humano', CYBORG: 'Cyborg', ALIEN: 'Alien', GUARDIANES: 'Guardián' };
+const NOMBRE_CLAN = { UNION_MAGICA: 'Unión Mágica', TITAN_DIGITAL: 'Titán Digital', PUERTO_UMBRAL: 'Puerto Umbral' };
+const NOMBRE_TIPO = { CIUDADANO: 'Ciudadano', TURISTA: 'Turista', TRABAJADOR: 'Trabajador' };
+
+/* ---- Documentos: clase abstracta + DNI, Pasaporte, Permiso ---- */
+class Documento {
+  constructor(nombre, origen, valido, vencimiento) {
+    this.nombre = nombre; this.origen = origen; this.valido = valido; this.vencimiento = vencimiento;
+  }
+  estaVencido(fechaActual) { return this.vencimiento < fechaActual; }
+  aportarEvidencias(resumen) { throw new Error('abstracto'); }
+  tarjeta() { throw new Error('abstracto'); }
+}
+
+class DNI extends Documento {
+  constructor(nombre, origen, valido, nacimiento, nro, vencimiento, huella, foto, raza) {
+    super(nombre, origen, valido, vencimiento);
+    Object.assign(this, { nacimiento, nro, huella, foto, raza });
+  }
+  aportarEvidencias(r) {
+    r.acreditar('DNI'); r.numerosDni.push(String(this.nro));
+    r.razas.push(this.raza); r.nacimientos.push(this.nacimiento);
+  }
+  tarjeta() {
+    return {
+      titulo: 'DOCUMENTO DE IDENTIDAD INTERGALÁCTICO', foto: this.foto, huella: this.huella,
+      campos: [['Nombre', this.nombre], ['Raza', NOMBRE_RAZA[this.raza]], ['Nacimiento', fmtFecha(this.nacimiento)],
+        ['Origen', this.origen], ['DNI', this.nro], ['Vence', fmtFecha(this.vencimiento)]]
+    };
+  }
+}
+
+class Pasaporte extends Documento {
+  constructor(nombre, origen, valido, vencimiento, nacimiento, raza, huella, clanEmisor, foto) {
+    super(nombre, origen, valido, vencimiento);
+    Object.assign(this, { nacimiento, raza, huella, clanEmisor, foto });
+  }
+  aportarEvidencias(r) {
+    r.acreditar('PASAPORTE'); r.razas.push(this.raza); r.nacimientos.push(this.nacimiento);
+  }
+  tarjeta() {
+    return {
+      titulo: NOMBRE_CLAN[this.clanEmisor].toUpperCase() + '<br>PASAPORTE', foto: this.foto, huella: this.huella,
+      campos: [['Nombre', this.nombre], ['Raza', NOMBRE_RAZA[this.raza]], ['Nacimiento', fmtFecha(this.nacimiento)],
+        ['Origen', this.origen], ['Vence', fmtFecha(this.vencimiento)]]
+    };
+  }
+}
+
+class Permiso extends Documento {
+  constructor(nombre, origen, valido, vencimiento, dni, ocupacion, numPermiso, clanEmisor) {
+    super(nombre, origen, valido, vencimiento);
+    Object.assign(this, { dni, ocupacion, numPermiso, clanEmisor });
+  }
+  aportarEvidencias(r) { r.acreditar('PERMISO'); r.dniEnPermisos.push(this.dni); }
+  tarjeta() {
+    return {
+      titulo: 'PERMISO DE ENTRADA', solo: true,
+      campos: [['Nombre', this.nombre], ['Origen', this.origen], ['DNI', this.dni], ['Ocupación', this.ocupacion],
+        ['N° permiso', this.numPermiso], ['Emisor', NOMBRE_CLAN[this.clanEmisor]], ['Vence', fmtFecha(this.vencimiento)]]
+    };
+  }
+}
+
+class ResumenDocumental {
+  constructor() { this.acred = new Set(); this.numerosDni = []; this.dniEnPermisos = []; this.razas = []; this.nacimientos = []; }
+  acreditar(req) { this.acred.add(req); }
+  acredita(req) { return this.acred.has(req); }
+}
+
+/* ---- Ingresantes: clase abstracta + IngresanteRegular y Enemigo ---- */
+class Ingresante {
+  constructor(nombre, documentos, tipo, raza, clan, ciudad, imagen, motivoVisita) {
+    if (new.target === Ingresante) throw new Error('Ingresante es abstracta');
+    Object.assign(this, { nombre, documentos: [...documentos], tipo, raza, clan, ciudad, imagen, motivoVisita });
+  }
+  // Se presenta (propio de cada subclase) y luego explica el motivo de su visita.
+  responderInterrogatorio() { return this.darPresentacion() + ' ' + this.motivoVisita; }
+  obtenerResumenDocumental() {
+    const r = new ResumenDocumental();
+    this.documentos.forEach(d => d.aportarEvidencias(r));
+    return r;
+  }
+  darPresentacion() { throw new Error('abstracto'); }
+  esAmenaza() { throw new Error('abstracto'); }
+}
+class IngresanteRegular extends Ingresante {
+  darPresentacion() { return 'Buenos días, vengo a ingresar al planeta.'; }
+  esAmenaza() { return false; }
+}
+class Enemigo extends Ingresante {
+  constructor(nombre, docs, tipo, raza, clan, ciudad, imagen, motivo, portaBomba) {
+    super(nombre, docs, tipo, raza, clan, ciudad, imagen, motivo);
+    this.portaBomba = portaBomba;
+  }
+  darPresentacion() {
+    return this.portaBomba
+      ? '(Suda y mira hacia los costados) Buenos días, vengo a ingresar al planeta.'
+      : 'Buenos días, vengo a ingresar al planeta.';
+  }
+  esAmenaza() { return true; }
+}
+
+/* ---- Políticas fronterizas (interfaz: esValido + motivoRechazo) ---- */
+class PoliticaCoherenciaNombre {
+  esValido(i) { const d = i.documentos; return d.every(x => x.nombre.toLowerCase() === d[0].nombre.toLowerCase()); }
+  get motivoRechazo() { return 'Nombres no coincidentes entre documentos'; }
+}
+class PoliticaCoherenciaOrigen {
+  esValido(i) { const d = i.documentos; return d.every(x => x.origen.toLowerCase() === d[0].origen.toLowerCase()); }
+  get motivoRechazo() { return 'Origen no coincidente entre documentos'; }
+}
+class PoliticaCoherenciaDni {
+  esValido(i) {
+    const r = i.obtenerResumenDocumental();
+    if (r.numerosDni.length === 0) return true;
+    const ref = r.numerosDni[r.numerosDni.length - 1];
+    return r.dniEnPermisos.every(p => p === ref);
+  }
+  get motivoRechazo() { return 'DNIs no coincidente entre documentos'; }
+}
+class PoliticaCoherenciaRaza {
+  constructor() { this.motivo = 'La raza anatómica no coincide con los documentos'; }
+  esValido(i) {
+    this.motivo = 'La raza anatómica no coincide con los documentos';
+    for (const razaDoc of i.obtenerResumenDocumental().razas) {
+      if (razaDoc !== i.raza) {
+        if (i.raza === 'HUMANO' && razaDoc === 'ALIEN') this.motivo = 'Es humano, pero el documento dice que es alien';
+        else if (i.raza === 'ALIEN' && razaDoc === 'HUMANO') this.motivo = 'No era un humano. ¿De dónde habrá sacado esos documentos?';
+        else this.motivo = 'Falsificación: la raza del ingresante no coincide con la registrada';
+        return false;
+      }
+    }
+    return true;
+  }
+  get motivoRechazo() { return this.motivo; }
+}
+class PoliticaVencimiento {
+  constructor(fecha) { this.fecha = fecha; }
+  esValido(i) { return i.documentos.every(d => !d.estaVencido(this.fecha)); }
+  get motivoRechazo() { return 'Documento vencido'; }
+}
+class PoliticaNacimientoValido {
+  constructor(fecha) { this.fecha = fecha; }
+  esValido(i) { return i.obtenerResumenDocumental().nacimientos.every(n => !(n > this.fecha)); }
+  get motivoRechazo() { return 'Nacimiento después de la fecha actual'; }
+}
+class PoliticaDocumentacionRequerida {
+  esValido(i) {
+    const r = i.obtenerResumenDocumental();
+    if (!r.acredita('DNI')) return false;
+    if (i.tipo !== 'CIUDADANO' && !r.acredita('PASAPORTE')) return false;
+    if (i.tipo === 'TRABAJADOR' && !r.acredita('PERMISO')) return false;
+    return true;
+  }
+  get motivoRechazo() { return 'Falta documentación requerida'; }
+}
+class PoliticaIngresante {
+  esValido(i) { return !i.esAmenaza(); }
+  get motivoRechazo() { return 'El ingresante es una amenaza'; }
+}
+class PoliticaProhibicionCiudad {
+  constructor(l) { this.l = l; }
+  esValido(i) { return !this.l.includes(i.ciudad); }
+  get motivoRechazo() { return 'Ciudad de origen prohibida'; }
+}
+class PoliticaProhibicionClan {
+  constructor(l) { this.l = l; }
+  esValido(i) { return !this.l.includes(i.clan); }
+  get motivoRechazo() { return 'Clan prohibido'; }
+}
+class PoliticaProhibicionRaza {
+  constructor(l) { this.l = l; }
+  esValido(i) { return !this.l.includes(i.raza); }
+  get motivoRechazo() { return 'Raza no humana'; }
+}
+
+class Resolutor {
+  constructor() { this.politicas = []; }
+  agregar(p) { this.politicas.push(p); }
+  obtenerPoliticaFallida(ingresante) { return this.politicas.find(p => !p.esValido(ingresante)) || null; }
+}
+
+/* ---- Reglas del día (clase abstracta + 3 variaciones) ---- */
+class ReglasDia {
+  constructor(numero, descripcion, fecha) { Object.assign(this, { numero, descripcion, fecha }); }
+  get ciudadesProhibidas() { return []; }
+  get clanesProhibidos() { return []; }
+  get razasProhibidas() { return []; }
+  get reglasDetalladas() { return []; }
+}
+class ReglasVariacion1 extends ReglasDia {
+  constructor() { super(1, 'Variación 1: Solo Humanos', D(2159, 11, 14)); }
+  get razasProhibidas() { return ['ALIEN', 'GUARDIANES', 'CYBORG']; }
+  get reglasDetalladas() { return ['1. ¡SOLO pasan humanos!', '2. PROHIBIDO el ingreso a cualquier otra raza.']; }
+}
+class ReglasVariacion2 extends ReglasDia {
+  constructor() { super(2, 'Variación 2: Restricción de Origen', D(2159, 11, 15)); }
+  get ciudadesProhibidas() { return ['ZOMBAR', 'NAMEK']; }
+  get reglasDetalladas() { return ['1. Se admiten todas las razas.', '2. ÚNICAMENTE provenientes de HASGARD, BALES y LANDER.']; }
+}
+class ReglasVariacion3 extends ReglasDia {
+  constructor() { super(3, 'Variación 3: Fronteras Abiertas', D(2159, 11, 16)); }
+  get reglasDetalladas() { return ['1. Fronteras abiertas.', '2. Se admiten todas las razas y orígenes.', '3. Revisar documentación.']; }
+}
+const crearVariacionAleatoria = () => [new ReglasVariacion1(), new ReglasVariacion2(), new ReglasVariacion3()][Math.floor(Math.random() * 3)];
+
+/* ---- Reputación ---- */
+class GestorReputacion {
+  constructor() { this.reputacion = 10; }
+  reiniciar() { this.reputacion = 10; }
+  evaluarDecision(decision, puedeIngresar) {
+    const acierto = decision === puedeIngresar;
+    this.reputacion = Math.max(0, Math.min(10, this.reputacion + (acierto ? 1 : -3)));
+    return acierto;
+  }
+  juegoPerdido() { return this.reputacion <= 0; }
+}
+
+/* ---- Plantel de 10 ingresantes ---- */
+function crearPlantelInicial() {
+  const HUM = 'HUMANO', CYB = 'CYBORG', ALI = 'ALIEN', GUA = 'GUARDIANES';
+  const UM = 'UNION_MAGICA', TD = 'TITAN_DIGITAL', PU = 'PUERTO_UMBRAL';
+  const dni = (n, o, v, nac, nro, ven, ra, foto, hue) => new DNI(n, o, v, nac, nro, ven, 'hue_' + hue + '.webp', 'foto_' + foto + '.webp', ra);
+  const pas = (n, o, v, ven, nac, ra, hue, clan, foto) => new Pasaporte(n, o, v, ven, nac, ra, 'hue_' + hue + '.webp', clan, 'foto_' + foto + '.webp');
+  const per = (n, o, v, ven, dniN, ocu, num, clan) => new Permiso(n, o, v, ven, dniN, ocu, num, clan);
+  const mk = (nombre, tipo, raza, clan, ciudad, aspecto, docs, enemigo, bomba, motivo) => {
+    const img = 'ing_' + aspecto + '.webp';
+    return enemigo ? new Enemigo(nombre, docs, tipo, raza, clan, ciudad, img, motivo, bomba)
+                   : new IngresanteRegular(nombre, docs, tipo, raza, clan, ciudad, img, motivo);
+  };
+  const p = [];
+
+  p.push(mk('Sir Arthur', 'CIUDADANO', HUM, PU, 'HASGARD', 'caballero', [
+    dni('Sir Arthur', 'Hasgard', true, D(1990, 5, 10), 40123101, D(2165, 12, 12), HUM, 'carnet_caballero', 'huella'),
+    per('Sir Arthur', 'Husguiard', true, D(2165, 12, 12), '40123101', 'Comerciante', 1001, PU),
+    pas('Sir Arthur', 'Hasgard', true, D(2165, 12, 12), D(1990, 5, 10), HUM, 'huella', PU, 'carnet_caballero')
+  ], false, false, 'Vengo a la capital a visitar el mercado.'));
+
+  p.push(mk('Zorglub', 'TURISTA', ALI, TD, 'LANDER', 'alien', [
+    dni('Lázaro', 'Lander', false, D(1985, 8, 22), 35890102, D(2160, 11, 5), HUM, 'carnet_viajero2', 'huella_5'),
+    per('Lázaro', 'Lander', false, D(2160, 11, 5), '35890102', 'Turista', 1002, PU),
+    pas('Lázaro', 'Lander', false, D(2158, 11, 5), D(1985, 8, 22), HUM, 'huella_5', PU, 'carnet_viajero2')
+  ], true, true, 'Eh... soy un humano normal haciendo cosas de humanos.'));
+
+  p.push(mk('Cmdte. Vance', 'TRABAJADOR', CYB, UM, 'BALES', 'astronauta', [
+    dni('Cmdte. Vance', 'Bales', true, D(2040, 10, 30), 38440104, D(2160, 12, 7), CYB, 'carnet_astronauta', 'huella_2'),
+    per('Cmdte. Vance', 'Bales', true, D(2160, 12, 7), '38440104', 'Cmdte de estación', 1003, UM),
+    pas('Cmdte. Vance', 'Bales', true, D(2160, 12, 7), D(2040, 10, 30), CYB, 'huella_2', UM, 'carnet_astronauta')
+  ], false, false, 'Fui reasignado a esta estación. Vengo por trabajo.'));
+
+  p.push(mk('Xylar', 'TURISTA', HUM, PU, 'LANDER', 'alien_ponele', [
+    dni('Xylar', 'Lander', false, D(1990, 1, 1), 42110103, D(2160, 11, 1), ALI, 'carnet_alien_impostor', 'huella_3'),
+    per('Xylar', 'Lander', false, D(2160, 11, 1), '42110103', 'Turista', 1004, TD),
+    pas('Xylar', 'Lander', false, D(2160, 11, 1), D(1990, 1, 1), ALI, 'huella_3', TD, 'carnet_alien_impostor')
+  ], false, false, '¡Saludos humano! Digo... colega. Vengo de turismo galáctico.'));
+
+  p.push(mk('Lázaro', 'TRABAJADOR', HUM, PU, 'BALES', 'viajero_pobre', [],
+    false, false, 'Señor, no tengo mis papeles... ¡un alienígena me los robó en la frontera!'));
+
+  p.push(mk('Aldebarán', 'CIUDADANO', GUA, UM, 'HASGARD', 'mago_clan_2', [
+    dni('Aldebarán', 'Hasgard', true, D(2100, 12, 20), 30112106, D(2165, 11, 15), GUA, 'carnet_mago_2', 'huella_alien_2'),
+    per('Aldebarán', 'Hasgard', true, D(2165, 11, 15), '30112106', 'Guardián mágico', 1006, UM),
+    pas('Aldebarán', 'Hasgard', true, D(2165, 11, 15), D(2100, 12, 20), GUA, 'huella_alien_2', UM, 'carnet_mago_2')
+  ], false, false, 'Asistiré a la conferencia anual de la Unión Mágica.'));
+
+  p.push(mk('Malakor', 'TURISTA', GUA, UM, 'NAMEK', 'mago_clan_3', [
+    dni('Malakor', 'Namek', true, D(2070, 9, 12), 32998107, D(2162, 11, 27), GUA, 'carnet_mago_3', 'huella_alien_3'),
+    per('Malakor', 'Namek', true, D(2162, 11, 27), '32998107', 'Hechicero', 1007, UM),
+    pas('Malakor', 'Namek', true, D(2162, 11, 27), D(2070, 9, 12), GUA, 'huella_alien_3', UM, 'carnet_mago_3')
+  ], true, true, 'No tengo por qué darte explicaciones, oficial... pero si insistes, turismo.'));
+
+  p.push(mk('Lyra', 'TRABAJADOR', HUM, UM, 'HASGARD', 'mago_clan_4', [
+    dni('Lyra', 'Hasgard', true, D(2018, 9, 12), 44776108, D(2160, 12, 20), HUM, 'carnet_mago_4', 'huella_4'),
+    per('Lyra', 'Hasgard', true, D(2160, 12, 20), '44776108', 'Prof. de magia', 1008, UM),
+    pas('Lyra', 'Hasgard', true, D(2160, 12, 20), D(2018, 9, 12), HUM, 'huella_4', UM, 'carnet_mago_4')
+  ], false, false, 'Busco trabajo como profesora en la academia de magia.'));
+
+  p.push(mk('Marco Polo', 'TURISTA', HUM, PU, 'LANDER', 'viajero', [
+    dni('Marco Polo', 'Lander', false, D(2011, 6, 26), 37665109, D(2150, 3, 15), HUM, 'carnet_viajero', 'huella_5'),
+    per('Marco Polo', 'Lander', true, D(2165, 3, 15), '37665109', 'Explorador', 1009, PU),
+    pas('Marco Polo', 'Lander', true, D(2165, 3, 15), D(2011, 6, 26), HUM, 'huella_5', PU, 'carnet_viajero')
+  ], false, false, 'Vengo a explorar estas tierras. ¡Soy un aventurero!'));
+
+  p.push(mk('Ragnar', 'CIUDADANO', HUM, PU, 'HASGARD', 'vikingo', [
+    dni('Ragnar', 'Hasgard', true, D(2022, 12, 18), 29334110, D(2161, 1, 2), HUM, 'carnet_vikingo', 'huella_1'),
+    per('Ragnar', 'Hasgard', true, D(2161, 1, 2), '29334110', 'Guerrero', 1010, PU),
+    pas('Ragnar', 'Hasgard', true, D(2161, 1, 2), D(2022, 12, 18), HUM, 'huella_1', PU, 'carnet_vikingo')
+  ], false, false, 'Vuelvo a mi hogar después de una larga expedición.'));
+
+  // Mezcla de Fisher-Yates para que cada partida sea distinta.
+  for (let i = p.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; }
+  return p;
+}
+
+/* ---- Partida: máquina de estados (patrón State, como en el proyecto Java) ---- */
+// Estados: FINALIZADA, LLAMADO, INTERROGATORIO, DOCUMENTOS, ATENDIENDO, SELLO, DESPEDIDO
+class Partida {
+  constructor() { this.gestor = new GestorReputacion(); this.resolutor = new Resolutor(); this.estado = 'FINALIZADA'; this.fila = []; this.actual = null; this.reglas = null; }
+
+  iniciar() {
+    this.gestor.reiniciar();
+    this.reglas = crearVariacionAleatoria();
+    this.cargarPoliticasDelDia();
+    this.fila = crearPlantelInicial();
+    this.actual = null;
+    this.estado = 'LLAMADO';
+  }
+
+  cargarPoliticasDelDia() {
+    const r = this.resolutor = new Resolutor();
+    const f = this.reglas.fecha;
+    [new PoliticaCoherenciaNombre(), new PoliticaCoherenciaOrigen(), new PoliticaCoherenciaDni(), new PoliticaCoherenciaRaza(),
+     new PoliticaVencimiento(f), new PoliticaNacimientoValido(f), new PoliticaDocumentacionRequerida(), new PoliticaIngresante()]
+      .forEach(p => r.agregar(p));
+    if (this.reglas.ciudadesProhibidas.length) r.agregar(new PoliticaProhibicionCiudad(this.reglas.ciudadesProhibidas));
+    if (this.reglas.clanesProhibidos.length) r.agregar(new PoliticaProhibicionClan(this.reglas.clanesProhibidos));
+    if (this.reglas.razasProhibidas.length) r.agregar(new PoliticaProhibicionRaza(this.reglas.razasProhibidas));
+  }
+
+  llamar() {
+    if (this.estado !== 'LLAMADO') return false;
+    this.actual = this.fila.shift();
+    this.estado = 'INTERROGATORIO';
+    return true;
+  }
+  interrogar() {
+    if (!['INTERROGATORIO', 'DOCUMENTOS', 'ATENDIENDO'].includes(this.estado)) return null;
+    if (this.estado === 'INTERROGATORIO') this.estado = 'DOCUMENTOS';
+    return this.actual.responderInterrogatorio();
+  }
+  solicitarDocumentos() {
+    if (this.estado !== 'DOCUMENTOS') return false;
+    this.estado = 'ATENDIENDO';
+    return true;
+  }
+  abrirSello() { if (this.estado !== 'ATENDIENDO') return false; this.estado = 'SELLO'; return true; }
+  cancelarDecision() { if (this.estado === 'SELLO') this.estado = 'ATENDIENDO'; }
+
+  decidir(acepta) {
+    if (this.estado !== 'SELLO') return null;
+    const fallida = this.resolutor.obtenerPoliticaFallida(this.actual);
+    const puedeIngresar = fallida === null;
+    const acierto = this.gestor.evaluarDecision(acepta, puedeIngresar);
+    let motivo = '';
+    if (!acierto) motivo = acepta ? fallida.motivoRechazo : 'Todos los datos del ingresante estaban en orden y al día.';
+    const perdida = this.gestor.juegoPerdido();
+    let fin = null;
+    if (perdida) { this.estado = 'DESPEDIDO'; fin = 'DERROTA'; }
+    else if (this.fila.length === 0) { this.estado = 'FINALIZADA'; fin = 'VICTORIA'; }
+    else this.estado = 'LLAMADO';
+    const resultado = { acierto, motivo, acepta, reputacion: this.gestor.reputacion, fin };
+    this.actual = null;
+    return resultado;
+  }
+}
+
+/* ======================= VISTA ======================= */
+const $ = id => document.getElementById(id);
+const partida = new Partida();
+let mostrarDocs = false;
+let tipoVisible = false;
+let lastActual = null;
+
+function show(el, on) { el.hidden = !on; }
+
+function renderRep() {
+  const rep = partida.gestor.reputacion;
+  const cont = $('rep');
+  cont.className = 'rep' + (rep <= 3 ? ' low' : '');
+  cont.innerHTML = Array.from({ length: 10 }, (_, i) => '<i class="' + (i < rep ? 'on' : '') + '"></i>').join('');
+  cont.setAttribute('aria-label', 'Reputación ' + rep + ' de 10');
+}
+
+function tarjetaHTML(doc) {
+  const t = doc.tarjeta();
+  const campos = t.campos.map(([k, v]) => '<dt>' + k + '</dt><dd>' + v + '</dd>').join('');
+  const fotos = t.foto ? '<div class="fotos"><img src="img/' + t.foto + '" alt="Foto del documento">' +
+    '<img class="hue" src="img/' + t.huella + '" alt="Huella"><small>HUELLA</small></div>' : '';
+  return '<article class="doc' + (t.solo ? ' solo' : '') + '"><h3>' + t.titulo + '</h3><div class="cuerpo">' + fotos + '<dl>' + campos + '</dl></div></article>';
+}
+
+function renderMesa() {
+  const a = partida.actual;
+  const visible = mostrarDocs && a && ['ATENDIENDO', 'SELLO'].includes(partida.estado);
+  show($('mesa'), !!visible);
+  if (!visible) return;
+  $('carrusel').innerHTML = a.documentos.length
+    ? a.documentos.map(tarjetaHTML).join('')
+    : '<p class="vacia">No tiene ningún documento para mostrar.</p>';
+}
+
+function renderVentanilla(animar) {
+  const a = partida.actual;
+  const v = $('ventanilla');
+  if (!a) { v.innerHTML = '<div class="vacio">La ventanilla está vacía.<br>Llamá al próximo ingresante.</div>'; return; }
+  const etiqueta = tipoVisible ? '<span class="etiqueta">' + NOMBRE_TIPO[a.tipo] + '</span>' : '';
+  v.innerHTML = etiqueta + '<img class="sprite' + (animar ? ' entra' : '') + '" src="img/' + a.imagen + '" alt="Ingresante en la ventanilla">';
+}
+
+const PISTAS = {
+  LLAMADO: 'Tocá Llamar para que pase el próximo.',
+  INTERROGATORIO: 'Interrogalo antes de pedirle los documentos.',
+  DOCUMENTOS: 'Ahora pedile los documentos.',
+  ATENDIENDO: 'Compará los papeles con el libro de reglas y abrí el sello.',
+  SELLO: '', DESPEDIDO: '', FINALIZADA: ''
+};
+
+function renderAcciones() {
+  const e = partida.estado;
+  $('a-llamar').disabled = e !== 'LLAMADO';
+  $('a-interrogar').disabled = !['INTERROGATORIO', 'DOCUMENTOS', 'ATENDIENDO'].includes(e);
+  $('a-docs').disabled = e !== 'DOCUMENTOS';
+  $('a-sello').disabled = e !== 'ATENDIENDO';
+  $('pista').textContent = PISTAS[e] || '';
+}
+
+function renderHud() {
+  renderRep();
+  const quedan = partida.fila.length + (partida.actual ? 1 : 0);
+  $('fila').textContent = quedan;
+  $('fecha').textContent = 'Hoy: ' + fmtFecha(partida.reglas.fecha);
+  $('dia').textContent = 'Día ' + partida.reglas.numero;
+}
+
+function setDialogo(html, clase) {
+  const d = $('dialogo');
+  d.className = 'dialogo' + (clase ? ' ' + clase : '');
+  d.innerHTML = html;
+}
+
+function renderReglas() {
+  const r = partida.reglas;
+  $('reglas-dia').innerHTML = '<div class="dia">' + fmtFecha(r.fecha) + '<br>' + r.descripcion.toUpperCase() + '</div>' +
+    r.reglasDetalladas.map(x => '<p class="regla">' + x + '</p>').join('');
+}
+
+function renderTodo(animar) {
+  renderHud(); renderVentanilla(animar); renderAcciones(); renderMesa();
+}
+
+function empezar() {
+  partida.iniciar();
+  mostrarDocs = false; tipoVisible = false;
+  show($('menu'), false); show($('juego'), true);
+  setDialogo('<span class="insp">Inspector:</span> Otro día en la frontera. Llamá al primero de la fila.');
+  renderReglas();
+  renderTodo(false);
+  window.scrollTo(0, 0);
+}
+
+function volverAlMenu() {
+  show($('juego'), false); show($('menu'), true);
+  ['m-reglas', 'm-sello', 'm-fin'].forEach(id => show($(id), false));
+  window.scrollTo(0, 0);
+}
+
+/* Acciones del jugador */
+$('btn-jugar').onclick = empezar;
+$('btn-como').onclick = () => { const p = $('como'); p.hidden = !p.hidden; };
+$('a-salir').onclick = volverAlMenu;
+$('f-otra').onclick = () => { show($('m-fin'), false); empezar(); };
+$('f-menu').onclick = volverAlMenu;
+
+$('a-llamar').onclick = () => {
+  if (!partida.llamar()) return;
+  mostrarDocs = false; tipoVisible = false;
+  setDialogo('<span class="insp">Inspector:</span> Siguiente, por favor.');
+  renderTodo(true);
+};
+
+$('a-interrogar').onclick = () => {
+  const r = partida.interrogar();
+  if (r === null) return;
+  tipoVisible = true;
+  setDialogo('<span class="insp">Inspector:</span> ¿A qué se debe su visita?\n<strong>' + partida.actual.nombre + ':</strong> ' + r);
+  renderTodo(false);
+};
+
+$('a-docs').onclick = () => {
+  if (!partida.solicitarDocumentos()) return;
+  mostrarDocs = true;
+  setDialogo('<span class="insp">Inspector:</span> Sus documentos, por favor.');
+  renderTodo(false);
+  $('mesa').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+$('a-sello').onclick = () => { if (partida.abrirSello()) show($('m-sello'), true); };
+$('d-cancelar').onclick = () => { partida.cancelarDecision(); show($('m-sello'), false); renderAcciones(); };
+$('a-reglas').onclick = () => show($('m-reglas'), true);
+$('c-reglas').onclick = () => show($('m-reglas'), false);
+
+function decidir(acepta) {
+  const actual = partida.actual;
+  const res = partida.decidir(acepta);
+  show($('m-sello'), false);
+  if (!res) return;
+  mostrarDocs = false;
+  // Sello sobre el ingresante y veredicto.
+  const v = $('ventanilla');
+  v.insertAdjacentHTML('beforeend', '<img class="sello-anim" src="img/' + (acepta ? 'sello_verde' : 'sello_rojo') + '.webp" alt="' + (acepta ? 'Aceptado' : 'Rechazado') + '">');
+  const accion = acepta ? 'Aceptaste' : 'Rechazaste';
+  if (res.acierto) {
+    setDialogo('<strong>Decisión correcta.</strong>\n' + accion + ' a ' + actual.nombre + '. Reputación +1.', 'ok');
+  } else {
+    setDialogo('<strong>Te equivocaste.</strong>\n' + accion + ' a ' + actual.nombre + '. ' + res.motivo + '\nReputación -3.', 'bad');
+  }
+  partida.actual = null;
+  renderHud(); renderAcciones(); renderMesa();
+  // La ventanilla queda con el sello unos instantes y luego se vacía.
+  setTimeout(() => { if (partida.actual === null) renderVentanilla(false); }, 1100);
+  if (res.fin) setTimeout(() => finDePartida(res.fin), 1300);
+}
+$('d-aceptar').onclick = () => decidir(true);
+$('d-rechazar').onclick = () => decidir(false);
+
+function finDePartida(fin) {
+  const t = $('t-fin');
+  if (fin === 'VICTORIA') {
+    t.textContent = '¡TURNO COMPLETADO!'; t.className = 'fin-titulo v';
+    $('fin-texto').textContent = 'Atendiste a los 10 ingresantes y terminaste con ' + partida.gestor.reputacion + ' de reputación.';
+  } else {
+    t.textContent = 'ESTÁS DESPEDIDO'; t.className = 'fin-titulo d';
+    $('fin-texto').textContent = 'Cometiste demasiados errores y tu reputación llegó a 0. Devolvé la placa y retirate.';
+  }
+  show($('m-fin'), true);
+}
+
+// Cerrar modales de reglas con Escape.
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { show($('m-reglas'), false); } });
+</script>
