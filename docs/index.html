@@ -205,7 +205,7 @@ html.escritorio body > *:not(#esc):not(script) { display: none !important; }
 #esc .campo-nombre { position: absolute; font: 22px var(--f-body); padding: 0 6px; border: 2px solid #3a1515; background: #ead9b2; color: #231914; }
 #esc .exito { text-align: center; font-size: 26px; color: #d6f6ff; }
 #esc .msg { position: absolute; z-index: 70; left: 50%; top: 50%; transform: translate(-50%, -50%); min-width: 320px; max-width: 520px; padding: 22px 26px; background: #ead9b2; border: 4px solid #120906; box-shadow: 0 0 0 4px #6b3a1b; color: #231914; text-align: center; font-size: 24px; }
-#esc .msg p { margin: 0 0 16px; }
+#esc .msg p { margin: 0 0 16px; white-space: pre-line; }
 #esc .msg-ok { font: 20px var(--f-display); font-size: 13px; padding: 10px 18px; background: #c9783b; color: #1c0f08; border: 3px solid #120906; cursor: pointer; }
 </style>
 
@@ -229,7 +229,7 @@ html.escritorio body > *:not(#esc):not(script) { display: none !important; }
         <li>Arrastrá los papeles por la <b>mesa</b> y compará con el <b>libro de reglas</b> (tocalo para abrirlo).</li>
         <li>Abrí el <b>Sello</b> y aceptá o rechazá.</li>
       </ol>
-      <p class="nota" style="margin-top:10px;text-align:left">Acertar suma 1 de reputación. Equivocarte resta 3. Si llegás a 0 te despiden. Si atendés a los 10 ingresantes, ganás.</p>
+      <p class="nota" style="margin-top:10px;text-align:left">Acertar suma 1 de reputación. Equivocarte resta 3. Si llegás a 0 te despiden. Si atendés a toda la fila (entre 10 y 15 ingresantes), ganás.</p>
     </div>
     <p class="nota" style="margin-top:24px">Versión web del trabajo final de POO.</p>
   </section>
@@ -639,10 +639,82 @@ function crearPlantelInicial() {
   return p;
 }
 
+
+/* ---- Ingresantes generados: combinan sprites y fotos existentes con datos y defectos al azar ---- */
+const PERFILES = [
+  { aspecto: 'caballero',   raza: 'HUMANO',     foto: 'carnet_caballero',  hue: 'huella' },
+  { aspecto: 'vikingo',     raza: 'HUMANO',     foto: 'carnet_vikingo',    hue: 'huella_1' },
+  { aspecto: 'viajero',     raza: 'HUMANO',     foto: 'carnet_viajero',    hue: 'huella_5' },
+  { aspecto: 'mago_clan_4', raza: 'HUMANO',     foto: 'carnet_mago_4',     hue: 'huella_4' },
+  { aspecto: 'astronauta',  raza: 'CYBORG',     foto: 'carnet_astronauta', hue: 'huella_2' },
+  { aspecto: 'alien',       raza: 'ALIEN',      foto: 'carnet_alien',      hue: 'huella_alien_2' },
+  { aspecto: 'mago_clan_2', raza: 'GUARDIANES', foto: 'carnet_mago_2',     hue: 'huella_alien_2' },
+  { aspecto: 'mago_clan_3', raza: 'GUARDIANES', foto: 'carnet_mago_3',     hue: 'huella_alien_3' }
+];
+const NOMBRES = ['Brenna', 'Tuk', 'Odalys', 'Rhaegar', 'Ilse', 'Quill', 'Mordai', 'Seren', 'Bartolo', 'Nyx', 'Kael', 'Yara', 'Dorian', 'Fenna',
+  'Grumbold', 'Isolde', 'Tavish', 'Zephyra', 'Corvin', 'Lumi', 'Hektor', 'Anwen', 'Brosk', 'Vesper'];
+const CIUDADES = ['HASGARD', 'BALES', 'LANDER', 'NAMEK', 'ZOMBAR'];
+const CLANES = ['UNION_MAGICA', 'TITAN_DIGITAL', 'PUERTO_UMBRAL'];
+const OCUPACIONES = ['Mecánico', 'Cocinero', 'Cartógrafo', 'Herrero', 'Médico de campo', 'Piloto', 'Bibliotecario', 'Ingeniero'];
+const MOTIVOS = {
+  CIUDADANO: ['Regreso a casa después de un viaje largo.', 'Vuelvo de visitar a mi familia en otra estación.', 'Soy residente, vengo de hacer unas compras.'],
+  TURISTA: ['Vengo a conocer la capital, dicen que el mercado es increíble.', 'Turismo, nada más. Quiero sacar fotos de las murallas.', 'Es mi primera vez en esta frontera, ¿está todo bien?'],
+  TRABAJADOR: ['Me contrataron para trabajar en el puerto.', 'Empiezo mañana en un taller de la ciudad.', 'Tengo una oferta de trabajo y los papeles al día.']
+};
+const DEFECTOS = ['nombre', 'origen', 'dni', 'raza', 'vencido', 'nacimiento', 'falta', 'amenaza'];
+let contadorIngresantes = 0;
+
+function crearIngresanteAleatorio() {
+  const per = sorteo(PERFILES);
+  const nombre = sorteo(NOMBRES);
+  const tipo = sorteo(['CIUDADANO', 'TURISTA', 'TRABAJADOR']);
+  const origen = sorteo(CIUDADES), clan = sorteo(CLANES);
+  const nac = D(1960 + Math.floor(Math.random() * 130), 1 + Math.floor(Math.random() * 12), 1 + Math.floor(Math.random() * 28));
+  const nro = 20000000 + Math.floor(Math.random() * 25000000);
+  const ven = () => D(2160 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 12), 1 + Math.floor(Math.random() * 28));
+  const cap = s => s.charAt(0) + s.slice(1).toLowerCase();
+  const otro = (lista, actual) => sorteo(lista.filter(x => x !== actual));
+  // Defectos posibles según los documentos que lleva cada tipo (un ciudadano solo trae DNI: no hay con qué comparar nombres u orígenes).
+  const posibles = tipo === 'CIUDADANO' ? ['raza', 'vencido', 'nacimiento', 'amenaza']
+    : tipo === 'TURISTA' ? ['nombre', 'origen', 'raza', 'vencido', 'nacimiento', 'falta', 'amenaza'] : DEFECTOS;
+  const defecto = Math.random() < 0.4 ? sorteo(posibles) : null;
+  const ndocs = tipo === 'CIUDADANO' ? 1 : tipo === 'TURISTA' ? 2 : 3;
+  const k = Math.floor(Math.random() * ndocs), k2 = 1 + Math.floor(Math.random() * (ndocs - 1 || 1));
+
+  const d = { nombre: [nombre, nombre, nombre], origen: [cap(origen), cap(origen), cap(origen)], nac: [nac, nac], nro: [nro, String(nro)],
+    raza: [per.raza, per.raza], ven: [ven(), ven(), ven()], faltaPasaporte: false, faltaPermiso: false };
+  const ok = defecto === null || defecto === 'amenaza';
+  switch (defecto) {
+    case 'nombre': d.nombre[k2] = otro(NOMBRES, nombre); break;
+    case 'origen': d.origen[k2] = cap(otro(CIUDADES, origen)); break;
+    case 'dni': d.nro[1] = String(nro + 1 + Math.floor(Math.random() * 900)); break;
+    case 'raza': d.raza[0] = per.raza === 'HUMANO' ? 'ALIEN' : 'HUMANO'; break;
+    case 'vencido': d.ven[k] = D(2150 + Math.floor(Math.random() * 8), 1 + Math.floor(Math.random() * 12), 10); break;
+    case 'nacimiento': d.nac[0] = D(2170 + Math.floor(Math.random() * 20), 5, 5); break;
+    case 'falta': if (tipo === 'TURISTA' || Math.random() < 0.5) d.faltaPasaporte = true; else d.faltaPermiso = true; break;
+  }
+  const docs = [new DNI(d.nombre[0], d.origen[0], ok, d.nac[0], nro, d.ven[0], 'hue_' + per.hue + '.webp', 'foto_' + per.foto + '.webp', d.raza[0])];
+  if (tipo !== 'CIUDADANO' && !d.faltaPasaporte) docs.push(new Pasaporte(d.nombre[1], d.origen[1], ok, d.ven[1], d.nac[1], d.raza[1], 'hue_' + per.hue + '.webp', clan, 'foto_' + per.foto + '.webp'));
+  if (tipo === 'TRABAJADOR' && !d.faltaPermiso) docs.push(new Permiso(d.nombre[2], d.origen[2], ok, d.ven[2], d.nro[1], sorteo(OCUPACIONES), 2000 + (++contadorIngresantes), clan));
+  const img = 'ing_' + per.aspecto + '.webp', motivo = sorteo(MOTIVOS[tipo]);
+  return defecto === 'amenaza'
+    ? new Enemigo(nombre, docs, tipo, per.raza, clan, origen, img, motivo, Math.random() < 0.6)
+    : new IngresanteRegular(nombre, docs, tipo, per.raza, clan, origen, img, motivo);
+}
+
+// La fila mezcla ingresantes hechos a mano con generados; tiene entre 10 y 15 personas.
+function crearFila() {
+  const total = 10 + Math.floor(Math.random() * 6);
+  const manuales = crearPlantelInicial().slice(0, Math.ceil(total / 2));
+  const fila = manuales.concat(Array.from({ length: total - manuales.length }, crearIngresanteAleatorio));
+  for (let i = fila.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [fila[i], fila[j]] = [fila[j], fila[i]]; }
+  return fila;
+}
+
 /* ---- Partida: máquina de estados (patrón State, como en el proyecto Java) ---- */
 // Estados: FINALIZADA, LLAMADO, INTERROGATORIO, DOCUMENTOS, ATENDIENDO, SELLO, DESPEDIDO
 class Partida {
-  constructor() { this.gestor = new GestorReputacion(); this.resolutor = new Resolutor(); this.estado = 'FINALIZADA'; this.fila = []; this.actual = null; this.reglas = null; this.stats = Partida.statsVacias(); }
+  constructor() { this.gestor = new GestorReputacion(); this.resolutor = new Resolutor(); this.estado = 'FINALIZADA'; this.fila = []; this.actual = null; this.reglas = null; this.total = 0; this.cambioEn = -1; this.stats = Partida.statsVacias(); }
   static statsVacias() { return { aciertos: 0, errores: 0, racha: 0, mejorRacha: 0, puntaje: 0, motivos: {} }; }
   static get SEGUNDOS_POR_INGRESANTE() { return 60; }
 
@@ -650,7 +722,10 @@ class Partida {
     this.gestor.reiniciar();
     this.reglas = crearVariacionAleatoria();
     this.cargarPoliticasDelDia();
-    this.fila = crearPlantelInicial();
+    this.fila = crearFila();
+    this.total = this.fila.length;
+    // En el 70% de las partidas llega un comunicado a mitad de la fila que cambia las reglas del día.
+    this.cambioEn = Math.random() < 0.7 ? Math.floor(this.total / 2) : -1;
     this.actual = null;
     this.stats = Partida.statsVacias();
     this.estado = 'LLAMADO';
@@ -705,7 +780,18 @@ class Partida {
     else this.estado = 'LLAMADO';
     const resultado = { acierto, motivo, acepta, reputacion: this.gestor.reputacion, puntaje: this.stats.puntaje, racha: this.stats.racha, fin, tiempoAgotado: acepta === null };
     this.actual = null;
+    if (!fin && this.fila.length === this.cambioEn) resultado.comunicado = this.cambiarReglas();
     return resultado;
+  }
+  // Cambia las reglas sin cambiar la fecha (los documentos ya vencidos o por vencer no se mueven) y recarga las políticas.
+  cambiarReglas() {
+    const anterior = this.reglas;
+    const nueva = new (sorteo(VARIACIONES.filter(V => new V().numero !== anterior.numero)))();
+    nueva.fecha = anterior.fecha;
+    this.reglas = nueva;
+    this.cargarPoliticasDelDia();
+    this.cambioEn = -1;
+    return nueva;
   }
   decidir(acepta) {
     if (this.estado !== 'SELLO') return null;
@@ -1076,6 +1162,14 @@ function arrancarTiempo() {
 }
 function pararTiempo() { Cronometro.detener(); show($('tiempo'), false); }
 
+// Comunicado de la central: cambian las reglas del día a mitad de la fila.
+function avisoComunicado(res) {
+  if (!res || !res.comunicado) return '';
+  libroAbierto = false; renderLibro(true);
+  setTimeout(() => Sonido.efecto('llamar'), 500);
+  return '\n<strong>COMUNICADO DE LA CENTRAL:</strong> cambiaron las reglas del día. Revisá el libro.';
+}
+
 function tiempoAgotado() {
   const actual = partida.actual;
   const res = partida.agotarTiempo();
@@ -1084,7 +1178,7 @@ function tiempoAgotado() {
   pararTiempo();
   limpiarDocumentos();
   Sonido.efecto('error');
-  setDialogo('<strong>¡Se acabó el tiempo!</strong>\n' + actual.nombre + ' se retiró de la ventanilla. Reputación -3.', 'bad');
+  setDialogo('<strong>¡Se acabó el tiempo!</strong>\n' + actual.nombre + ' se retiró de la ventanilla. Reputación -3.' + avisoComunicado(res), 'bad');
   partida.actual = null;
   renderHud(); renderVentanilla(false); renderAcciones();
   if (res.fin) setTimeout(() => finDePartida(res.fin), 900);
@@ -1137,9 +1231,9 @@ function decidir(acepta) {
   setTimeout(() => Sonido.efecto(res.acierto ? 'acierto' : 'error'), 260);
   const accion = acepta ? 'Aceptaste' : 'Rechazaste';
   if (res.acierto) {
-    setDialogo('<strong>Decisión correcta.</strong>\n' + accion + ' a ' + actual.nombre + '. Reputación +1.' + (res.racha >= 2 ? ' Racha x' + Math.min(res.racha, 5) + '.' : ''), 'ok');
+    setDialogo('<strong>Decisión correcta.</strong>\n' + accion + ' a ' + actual.nombre + '. Reputación +1.' + (res.racha >= 2 ? ' Racha x' + Math.min(res.racha, 5) + '.' : '') + avisoComunicado(res), 'ok');
   } else {
-    setDialogo('<strong>Te equivocaste.</strong>\n' + accion + ' a ' + actual.nombre + '. ' + res.motivo + '\nReputación -3.', 'bad');
+    setDialogo('<strong>Te equivocaste.</strong>\n' + accion + ' a ' + actual.nombre + '. ' + res.motivo + '\nReputación -3.' + avisoComunicado(res), 'bad');
   }
   partida.actual = null;
   renderHud(); renderAcciones();
@@ -1154,7 +1248,7 @@ function finDePartida(fin) {
   const t = $('t-fin');
   if (fin === 'VICTORIA') {
     t.textContent = '¡TURNO COMPLETADO!'; t.className = 'fin-titulo v';
-    $('fin-texto').textContent = 'Atendiste a los 10 ingresantes y terminaste con ' + partida.gestor.reputacion + ' de reputación.';
+    $('fin-texto').textContent = 'Atendiste a los ' + partida.total + ' ingresantes y terminaste con ' + partida.gestor.reputacion + ' de reputación.';
     Sonido.efecto('victoria');
   } else {
     t.textContent = 'ESTÁS DESPEDIDO'; t.className = 'fin-titulo d';
@@ -1480,7 +1574,7 @@ function iniciarVistaEscritorio() {
   const cartel = dialogo(650, 432, 'e_cartel', true, 41);
   const cartelTxt = h('div', 'cartel-txt', px(230, 115, 335, 172), cartel);
   const cAceptar = boton(cartel, px(222, 282, 205, 70), 'e_b_aceptar');
-  let finPendiente = null;
+  let finPendiente = null, comunicadoPendiente = null;
 
   function animarSello(aceptado, alTerminar) {
     const W = raiz.clientWidth, H = raiz.clientHeight;
@@ -1528,7 +1622,7 @@ function iniciarVistaEscritorio() {
       const res = partida.decidir(acepta);
       if (!res) return;
       // actualizarVeredicto
-      limpiarMesa(); cerrarLibro(); limpiarVentanilla(); bDocumentos.hidden = true;
+      limpiarMesa(); cerrarLibro(); limpiarVentanilla(); ocultarGlobos(); bDocumentos.hidden = true;
       const msg = res.acierto
         ? '¡Decisión correcta!' + (res.racha >= 2 ? ' Racha x' + Math.min(res.racha, 5) : '') + '\nReputación: ' + res.reputacion
         : '¡Penalización!\n' + res.motivo + '\nReputación: ' + res.reputacion;
@@ -1536,6 +1630,7 @@ function iniciarVistaEscritorio() {
       cartel.hidden = false;
       Sonido.efecto(res.acierto ? 'acierto' : 'error');
       if (res.fin) finPendiente = res.fin;
+      comunicadoPendiente = res.comunicado || null;
     });
   }
   function tiempoAgotado() {
@@ -1545,6 +1640,7 @@ function iniciarVistaEscritorio() {
     decision.hidden = true; anuncio.hidden = true; ocultarGlobos();
     limpiarMesa(); cerrarLibro(); limpiarVentanilla(); bDocumentos.hidden = true;
     cartelTxt.textContent = '¡Se acabó el tiempo!\nEl ingresante se retiró.\nReputación: ' + res.reputacion;
+    comunicadoPendiente = res.comunicado || null;
     cartel.hidden = false;
     Sonido.efecto('error');
     if (res.fin) finPendiente = res.fin;
@@ -1557,8 +1653,13 @@ function iniciarVistaEscritorio() {
   const fGuardar = boton(fin, rect(0.45, 0.718, 0.10, 0.07), 'e_b_guardar_puntaje', null, true);
   const fVolver = boton(fin, rect(0.45, 0.81, 0.10, 0.07), 'e_b_volver_menu', null, true);
   const fStats = h('div', 'fin-stats', rect(0.15, 0.915, 0.70, 0.06), fin);
+  function mostrarComunicado(reglas) {
+    Sonido.efecto('llamar');
+    mensajeSimple('COMUNICADO DE LA CENTRAL\nCambiaron las reglas del día:\n' + reglas.reglasDetalladas.join('\n') + '\nEl libro fue actualizado.');
+  }
   cAceptar.addEventListener('click', () => {
     cartel.hidden = true;
+    if (comunicadoPendiente && !finPendiente) { const r = comunicadoPendiente; comunicadoPendiente = null; mostrarComunicado(r); }
     if (finPendiente) {
       const resultado = finPendiente; finPendiente = null;
       decision.hidden = true; cerrarLibro(); ocultarGlobos(); anuncio.hidden = true;
@@ -1648,7 +1749,7 @@ function iniciarVistaEscritorio() {
     limpiarMesa(); cerrarLibro(); limpiarVentanilla(); ocultarGlobos();
     bDocumentos.hidden = true; 
     [decision, cartel, anuncio].forEach(d => { d.hidden = true; });
-    finPendiente = null;
+    finPendiente = null; comunicadoPendiente = null;
     mostrarRestantes();
     mostrarPantalla(juego);
   }
