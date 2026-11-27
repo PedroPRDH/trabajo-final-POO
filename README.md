@@ -149,6 +149,7 @@ Desde la pantalla final se puede guardar el puntaje ingresando un nombre. `Punta
 
 La carpeta `docs/` contiene una versión del juego que corre en cualquier navegador, con dos modos. En una **PC** (pantalla ancha con mouse) reproduce la interfaz Swing original: mismas pantallas, imágenes, botones, tutorial, animación del sello y ranking. En el **celular** usa una interfaz adaptada a pantallas táctiles. Se puede forzar uno u otro con `?modo=escritorio` o `?modo=movil`. Es un port a JavaScript del mismo modelo (ingresantes, documentos, políticas, reglas del día y reputación), con la mesa de documentos arrastrable, el libro de reglas y sonido sintetizado con Web Audio.
 
+- **Novedades solo de la web (Fase 1 del roadmap):** temporizador de 60 s por ingresante, racha de aciertos con puntaje, 6 reglas del día (3 nuevas), saludos variados y estadísticas al final de la partida. El código Java no cambia.
 - **Diferencias con la versión Java:** el sonido es sintetizado (no usa el WAV original), el ranking se guarda en el navegador (`localStorage`) en vez de SQLite y el botón de salir no puede cerrar la pestaña.
 - **Probarla en local:** abrir `docs/index.html` o servir la carpeta con `python3 -m http.server --directory docs`.
 - **Publicarla con GitHub Pages:** *Settings → Pages → Build and deployment → Deploy from a branch*, elegir la rama y la carpeta `/docs`.

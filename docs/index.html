@@ -88,6 +88,13 @@ img { display: block; }
 .rep.low i.on { background: var(--bad); box-shadow: inset 0 -4px 0 #8c2f26; }
 .hud .lbl { font-family: var(--f-display); font-size: 9px; color: var(--muted); }
 .hud .val { font-size: 24px; text-align: right; font-variant-numeric: tabular-nums; }
+.hud .tiempo { grid-column: 1 / -1; display: grid; gap: 4px; }
+.tbarra { height: 12px; background: #120906; border: 2px solid #120906; outline: 2px solid var(--copper-dk); }
+.tbarra i { display: block; height: 100%; width: 100%; background: var(--ok); transition: width .25s linear, background .25s; }
+.tbarra i.medio { background: #e0b341; }
+.tbarra i.poco { background: var(--bad); }
+.tinfo { display: flex; justify-content: space-between; font-size: 20px; font-variant-numeric: tabular-nums; }
+.tinfo #racha { color: var(--glow); min-width: 3ch; text-align: right; }
 .hud .fecha { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--muted); font-size: 20px; }
 .hud .fecha .link { font-size: 17px; padding: 4px 0; }
 
@@ -180,6 +187,13 @@ html.escritorio body > *:not(#esc):not(script) { display: none !important; }
 #esc .cian { color: #5ed3e6; font-family: var(--f-body); }
 #esc .contador { position: absolute; background-size: 100% 100%; }
 #esc .ctxt { position: absolute; left: 5.6%; width: 88.4%; top: 29.6%; height: 59.2%; display: grid; place-items: center; font-family: var(--f-display); font-size: clamp(8px, 0.72vw, 14px); color: #f0e4cb; white-space: nowrap; text-align: center; }
+#esc .panel-tiempo { display: grid; align-content: center; gap: 3px; pointer-events: none; }
+#esc .tb { height: 12px; background: #120906; border: 2px solid #120906; outline: 2px solid #6b3a1b; }
+#esc .tb i { display: block; height: 100%; width: 100%; background: #74d27f; transition: width .25s linear, background .25s; }
+#esc .tb i.medio { background: #e0b341; }
+#esc .tb i.poco { background: #ea5f50; }
+#esc .ti { display: flex; justify-content: space-between; font-size: clamp(13px, 1.1vw, 20px); color: #f0e4cb; text-shadow: 1px 1px 0 #120906; font-variant-numeric: tabular-nums; }
+#esc .fin-stats { position: absolute; display: grid; place-items: center; text-align: center; font-size: clamp(14px, 1.3vw, 24px); color: #f4e9d4; text-shadow: 2px 2px 0 #000; }
 #esc .reloj { background-size: 100% 100%; background-repeat: no-repeat; display: grid; place-items: center; }
 #esc .hora { font-family: var(--f-body); font-size: clamp(11px, 1.2vw, 22px); color: #5ed3e6; white-space: nowrap; }
 #esc .burb { position: absolute; width: 300px; min-height: 120px; padding: 40px 34px 40px 24px; background-size: 100% 100%; background-repeat: no-repeat; font-size: 21px; line-height: 1.1; color: #231914; pointer-events: auto; }
@@ -230,6 +244,10 @@ html.escritorio body > *:not(#esc):not(script) { display: none !important; }
       <div>
         <div class="lbl" style="text-align:right">EN FILA</div>
         <div class="val" id="fila">10</div>
+      </div>
+      <div class="tiempo" id="tiempo" role="timer" aria-label="Tiempo para decidir" hidden>
+        <div class="tbarra"><i id="tbar"></i></div>
+        <div class="tinfo"><span id="tseg">60 s</span><span id="puntos">0 pts</span><span id="racha"></span></div>
       </div>
       <div class="fecha"><span id="fecha"></span><span id="dia"></span><button class="link" id="a-sonido" type="button">SONIDO: SÍ</button></div>
     </div>
@@ -382,8 +400,23 @@ class Ingresante {
   darPresentacion() { throw new Error('abstracto'); }
   esAmenaza() { throw new Error('abstracto'); }
 }
+const SALUDOS = [
+  'Buenos días, vengo a ingresar al planeta.',
+  'Hola, inspector. Quisiera cruzar la frontera.',
+  'Con permiso, vengo a ingresar. Acá tiene mis papeles.',
+  'Buen día. Espero no demorar mucho la fila.',
+  'Disculpe la espera, vengo a ingresar al planeta.'
+];
+const NERVIOS = [
+  '(Suda y mira hacia los costados)',
+  '(Se seca la frente y evita mirarte a los ojos)',
+  '(Tamborilea los dedos y mira la salida)',
+  '(Traga saliva y se acomoda el abrigo)'
+];
+const sorteo = lista => lista[Math.floor(Math.random() * lista.length)];
+
 class IngresanteRegular extends Ingresante {
-  darPresentacion() { return 'Buenos días, vengo a ingresar al planeta.'; }
+  darPresentacion() { return sorteo(SALUDOS); }
   esAmenaza() { return false; }
 }
 class Enemigo extends Ingresante {
@@ -392,9 +425,7 @@ class Enemigo extends Ingresante {
     this.portaBomba = portaBomba;
   }
   darPresentacion() {
-    return this.portaBomba
-      ? '(Suda y mira hacia los costados) Buenos días, vengo a ingresar al planeta.'
-      : 'Buenos días, vengo a ingresar al planeta.';
+    return this.portaBomba ? sorteo(NERVIOS) + ' ' + sorteo(SALUDOS) : sorteo(SALUDOS);
   }
   esAmenaza() { return true; }
 }
@@ -501,7 +532,23 @@ class ReglasVariacion3 extends ReglasDia {
   constructor() { super(3, 'Variación 3: Fronteras Abiertas', D(2159, 11, 16)); }
   get reglasDetalladas() { return ['1. Fronteras Abiertas.', '2. Se admiten todas', 'las razas y orígenes.', '3. Revisar documentación.']; }
 }
-const crearVariacionAleatoria = () => [new ReglasVariacion1(), new ReglasVariacion2(), new ReglasVariacion3()][Math.floor(Math.random() * 3)];
+class ReglasVariacion4 extends ReglasDia {
+  constructor() { super(4, 'Variación 4: Sin Titán Digital', D(2159, 11, 17)); }
+  get clanesProhibidos() { return ['TITAN_DIGITAL']; }
+  get reglasDetalladas() { return ['1. Alerta con TITAN DIGITAL.', '2. PROHIBIDO el ingreso', 'de ese clan.', '3. Revisar documentacion.']; }
+}
+class ReglasVariacion5 extends ReglasDia {
+  constructor() { super(5, 'Variación 5: Sin Unión Mágica', D(2159, 11, 18)); }
+  get clanesProhibidos() { return ['UNION_MAGICA']; }
+  get reglasDetalladas() { return ['1. Veto a la UNION MAGICA.', '2. PROHIBIDO el ingreso', 'de ese clan.', '3. Revisar documentacion.']; }
+}
+class ReglasVariacion6 extends ReglasDia {
+  constructor() { super(6, 'Variación 6: Cierre de Lander y Namek', D(2159, 11, 19)); }
+  get ciudadesProhibidas() { return ['LANDER', 'NAMEK']; }
+  get reglasDetalladas() { return ['1. Cerradas las rutas', 'de LANDER y NAMEK.', '2. Todas las razas pueden', 'pasar desde otros origenes.']; }
+}
+const VARIACIONES = [ReglasVariacion1, ReglasVariacion2, ReglasVariacion3, ReglasVariacion4, ReglasVariacion5, ReglasVariacion6];
+const crearVariacionAleatoria = () => new (sorteo(VARIACIONES))();
 
 /* ---- Reputación ---- */
 class GestorReputacion {
@@ -512,6 +559,7 @@ class GestorReputacion {
     this.reputacion = Math.max(0, Math.min(10, this.reputacion + (acierto ? 1 : -3)));
     return acierto;
   }
+  penalizar() { this.reputacion = Math.max(0, this.reputacion - 3); }
   juegoPerdido() { return this.reputacion <= 0; }
 }
 
@@ -594,7 +642,9 @@ function crearPlantelInicial() {
 /* ---- Partida: máquina de estados (patrón State, como en el proyecto Java) ---- */
 // Estados: FINALIZADA, LLAMADO, INTERROGATORIO, DOCUMENTOS, ATENDIENDO, SELLO, DESPEDIDO
 class Partida {
-  constructor() { this.gestor = new GestorReputacion(); this.resolutor = new Resolutor(); this.estado = 'FINALIZADA'; this.fila = []; this.actual = null; this.reglas = null; }
+  constructor() { this.gestor = new GestorReputacion(); this.resolutor = new Resolutor(); this.estado = 'FINALIZADA'; this.fila = []; this.actual = null; this.reglas = null; this.stats = Partida.statsVacias(); }
+  static statsVacias() { return { aciertos: 0, errores: 0, racha: 0, mejorRacha: 0, puntaje: 0, motivos: {} }; }
+  static get SEGUNDOS_POR_INGRESANTE() { return 60; }
 
   iniciar() {
     this.gestor.reiniciar();
@@ -602,6 +652,7 @@ class Partida {
     this.cargarPoliticasDelDia();
     this.fila = crearPlantelInicial();
     this.actual = null;
+    this.stats = Partida.statsVacias();
     this.estado = 'LLAMADO';
   }
 
@@ -635,6 +686,27 @@ class Partida {
   abrirSello() { if (this.estado !== 'ATENDIENDO') return false; this.estado = 'SELLO'; return true; }
   cancelarDecision() { if (this.estado === 'SELLO') this.estado = 'ATENDIENDO'; }
 
+  // Racha: cada acierto seguido vale más (100, 200, ... hasta 500); un error corta la racha y resta 50.
+  registrar(acierto, motivo) {
+    const st = this.stats;
+    if (acierto) { st.aciertos++; st.racha++; st.mejorRacha = Math.max(st.mejorRacha, st.racha); st.puntaje += 100 * Math.min(st.racha, 5); }
+    else { st.errores++; st.racha = 0; st.puntaje = Math.max(0, st.puntaje - 50); st.motivos[motivo] = (st.motivos[motivo] || 0) + 1; }
+  }
+  errorFrecuente() {
+    const e = Object.entries(this.stats.motivos).sort((x, y) => y[1] - x[1])[0];
+    return e ? e[0] : null;
+  }
+  cerrarTurno(acierto, motivo, acepta) {
+    this.registrar(acierto, motivo);
+    const perdida = this.gestor.juegoPerdido();
+    let fin = null;
+    if (perdida) { this.estado = 'DESPEDIDO'; fin = 'DERROTA'; }
+    else if (this.fila.length === 0) { this.estado = 'FINALIZADA'; fin = 'VICTORIA'; }
+    else this.estado = 'LLAMADO';
+    const resultado = { acierto, motivo, acepta, reputacion: this.gestor.reputacion, puntaje: this.stats.puntaje, racha: this.stats.racha, fin, tiempoAgotado: acepta === null };
+    this.actual = null;
+    return resultado;
+  }
   decidir(acepta) {
     if (this.estado !== 'SELLO') return null;
     const fallida = this.resolutor.obtenerPoliticaFallida(this.actual);
@@ -642,16 +714,40 @@ class Partida {
     const acierto = this.gestor.evaluarDecision(acepta, puedeIngresar);
     let motivo = '';
     if (!acierto) motivo = acepta ? fallida.motivoRechazo : 'Todos los datos del ingresante estaban en orden y al día.';
-    const perdida = this.gestor.juegoPerdido();
-    let fin = null;
-    if (perdida) { this.estado = 'DESPEDIDO'; fin = 'DERROTA'; }
-    else if (this.fila.length === 0) { this.estado = 'FINALIZADA'; fin = 'VICTORIA'; }
-    else this.estado = 'LLAMADO';
-    const resultado = { acierto, motivo, acepta, reputacion: this.gestor.reputacion, fin };
-    this.actual = null;
-    return resultado;
+    return this.cerrarTurno(acierto, motivo, acepta);
+  }
+  // Si se acaba el tiempo con alguien en la ventanilla, el ingresante se retira y cuenta como error.
+  agotarTiempo() {
+    if (!this.actual || !['INTERROGATORIO', 'DOCUMENTOS', 'ATENDIENDO', 'SELLO'].includes(this.estado)) return null;
+    this.gestor.penalizar();
+    return this.cerrarTurno(false, 'Tiempo agotado', null);
   }
 }
+
+/* ======================= CRONÓMETRO (tiempo por ingresante) ======================= */
+const Cronometro = {
+  _id: null, _fin: 0, _total: 0,
+  iniciar(segundos, alCambiar, alAgotar) {
+    this.detener();
+    this._total = segundos; this._fin = Date.now() + segundos * 1000;
+    const tic = () => {
+      const resto = Math.max(0, this._fin - Date.now());
+      alCambiar(resto / 1000, resto / (this._total * 1000));
+      if (resto <= 0) { this.detener(); alAgotar(); }
+    };
+    this._id = setInterval(tic, 250); tic();
+  },
+  detener() { if (this._id) { clearInterval(this._id); this._id = null; } }
+};
+
+// Texto de estadísticas para las pantallas finales (lo usan las dos vistas).
+function resumenStats(p) {
+  p = p || partida_actual();
+  const st = p.stats, ef = p.errorFrecuente();
+  return 'Puntaje: ' + st.puntaje + ' · Aciertos: ' + st.aciertos + ' · Errores: ' + st.errores + ' · Mejor racha: ' + st.mejorRacha +
+    (ef ? ' · Error más común: ' + ef : '');
+}
+let partida_actual = () => null;
 
 /* ======================= SONIDO (sintetizado con Web Audio, sin archivos) ======================= */
 const Sonido = (() => {
@@ -745,6 +841,7 @@ function iniciarVistaMovil() {
 /* ======================= VISTA ======================= */
 const $ = id => document.getElementById(id);
 const partida = new Partida();
+partida_actual = () => partida;
 const desk = $('desk');
 let tipoVisible = false;
 let zTop = 10;
@@ -914,6 +1011,8 @@ function renderAcciones() {
 
 function renderHud() {
   renderRep();
+  $('puntos').textContent = partida.stats.puntaje + ' pts';
+  $('racha').textContent = partida.stats.racha >= 2 ? 'x' + Math.min(partida.stats.racha, 5) : '';
   $('fila').textContent = partida.fila.length + (partida.actual ? 1 : 0);
   $('fecha').textContent = 'Hoy: ' + fmtFecha(partida.reglas.fecha);
   $('dia').textContent = 'Día ' + partida.reglas.numero;
@@ -939,6 +1038,7 @@ etiquetaSonido();
 
 function empezar() {
   partida.iniciar();
+  pararTiempo();
   tipoVisible = false; libroAbierto = false;
   limpiarDocumentos();
   show($('menu'), false); show($('juego'), true);
@@ -950,6 +1050,7 @@ function empezar() {
 }
 
 function volverAlMenu() {
+  pararTiempo();
   show($('juego'), false); show($('menu'), true);
   ['m-sello', 'm-fin'].forEach(id => show($(id), false));
   Sonido.detenerMusica();
@@ -964,8 +1065,34 @@ $('f-otra').onclick = () => { show($('m-fin'), false); empezar(); };
 $('f-menu').onclick = volverAlMenu;
 $('a-ordenar').onclick = ordenarMesa;
 
+function arrancarTiempo() {
+  const t = $('tiempo'), barra = $('tbar');
+  show(t, true);
+  Cronometro.iniciar(Partida.SEGUNDOS_POR_INGRESANTE, (seg, frac) => {
+    barra.style.width = (frac * 100) + '%';
+    barra.className = frac < 0.2 ? 'poco' : frac < 0.5 ? 'medio' : '';
+    $('tseg').textContent = Math.ceil(seg) + ' s';
+  }, tiempoAgotado);
+}
+function pararTiempo() { Cronometro.detener(); show($('tiempo'), false); }
+
+function tiempoAgotado() {
+  const actual = partida.actual;
+  const res = partida.agotarTiempo();
+  show($('m-sello'), false);
+  if (!res) return;
+  pararTiempo();
+  limpiarDocumentos();
+  Sonido.efecto('error');
+  setDialogo('<strong>¡Se acabó el tiempo!</strong>\n' + actual.nombre + ' se retiró de la ventanilla. Reputación -3.', 'bad');
+  partida.actual = null;
+  renderHud(); renderVentanilla(false); renderAcciones();
+  if (res.fin) setTimeout(() => finDePartida(res.fin), 900);
+}
+
 $('a-llamar').onclick = () => {
   if (!partida.llamar()) return;
+  arrancarTiempo();
   tipoVisible = false; limpiarDocumentos();
   Sonido.efecto('llamar');
   setDialogo('<span class="insp">Inspector:</span> Siguiente, por favor.');
@@ -1002,6 +1129,7 @@ function decidir(acepta) {
   const res = partida.decidir(acepta);
   show($('m-sello'), false);
   if (!res) return;
+  pararTiempo();
   limpiarDocumentos();
   const v = $('ventanilla');
   v.insertAdjacentHTML('beforeend', '<img class="sello-anim" src="img/' + (acepta ? 'sello_verde' : 'sello_rojo') + '.webp" alt="' + (acepta ? 'Aceptado' : 'Rechazado') + '">');
@@ -1009,7 +1137,7 @@ function decidir(acepta) {
   setTimeout(() => Sonido.efecto(res.acierto ? 'acierto' : 'error'), 260);
   const accion = acepta ? 'Aceptaste' : 'Rechazaste';
   if (res.acierto) {
-    setDialogo('<strong>Decisión correcta.</strong>\n' + accion + ' a ' + actual.nombre + '. Reputación +1.', 'ok');
+    setDialogo('<strong>Decisión correcta.</strong>\n' + accion + ' a ' + actual.nombre + '. Reputación +1.' + (res.racha >= 2 ? ' Racha x' + Math.min(res.racha, 5) + '.' : ''), 'ok');
   } else {
     setDialogo('<strong>Te equivocaste.</strong>\n' + accion + ' a ' + actual.nombre + '. ' + res.motivo + '\nReputación -3.', 'bad');
   }
@@ -1033,6 +1161,7 @@ function finDePartida(fin) {
     $('fin-texto').textContent = 'Cometiste demasiados errores y tu reputación llegó a 0. Devolvé la placa y retirate.';
     Sonido.efecto('derrota');
   }
+  $('fin-texto').textContent += ' ' + resumenStats();
   show($('m-fin'), true);
 }
 }
@@ -1044,6 +1173,7 @@ function finDePartida(fin) {
 function iniciarVistaEscritorio() {
   document.documentElement.classList.add('escritorio');
   const partida = new Partida();
+  partida_actual = () => partida;
   const raiz = document.createElement('div');
   raiz.id = 'esc';
   document.body.appendChild(raiz);
@@ -1214,6 +1344,29 @@ function iniciarVistaEscritorio() {
   const contadorTxt = h('span', 'ctxt', null, contador);
   function mostrarRestantes() { contadorTxt.textContent = 'Ingresantes en fila: ' + partida.fila.length; }
 
+  // Tiempo restante, puntaje y racha (debajo del cartel de ingresantes)
+  const panelTiempo = h('div', 'abs panel-tiempo', rect(0.012, 0.128, 0.225, 0.052), juego);
+  panelTiempo.hidden = true;
+  const tbarra = h('div', 'tb', null, panelTiempo);
+  const tbar = h('i', null, null, tbarra);
+  const tinfo = h('div', 'ti', null, panelTiempo);
+  const tSeg = h('span', null, null, tinfo, '60 s');
+  const tPuntos = h('span', null, null, tinfo, '0 pts');
+  const tRacha = h('span', 'cian', null, tinfo, '');
+  function actualizarPuntaje() {
+    tPuntos.textContent = partida.stats.puntaje + ' pts';
+    tRacha.textContent = partida.stats.racha >= 2 ? 'racha x' + Math.min(partida.stats.racha, 5) : '';
+  }
+  function arrancarTiempo() {
+    panelTiempo.hidden = false; actualizarPuntaje();
+    Cronometro.iniciar(Partida.SEGUNDOS_POR_INGRESANTE, (seg, frac) => {
+      tbar.style.width = (frac * 100) + '%';
+      tbar.className = frac < 0.2 ? 'poco' : frac < 0.5 ? 'medio' : '';
+      tSeg.textContent = Math.ceil(seg) + ' s';
+    }, tiempoAgotado);
+  }
+  function pararTiempo() { Cronometro.detener(); panelTiempo.hidden = true; }
+
   const reloj = h('div', 'abs reloj', rect(0.257, 0.91, 0.060, 0.07), juego);
   reloj.style.backgroundImage = url('e_reloj');
   const horaTxt = h('div', 'hora', null, reloj, '00:00:00');
@@ -1369,6 +1522,7 @@ function iniciarVistaEscritorio() {
   }
 
   function procesarDecision(acepta) {
+    pararTiempo();
     decision.hidden = true;
     animarSello(acepta, () => {
       const res = partida.decidir(acepta);
@@ -1376,13 +1530,24 @@ function iniciarVistaEscritorio() {
       // actualizarVeredicto
       limpiarMesa(); cerrarLibro(); limpiarVentanilla(); bDocumentos.hidden = true;
       const msg = res.acierto
-        ? '¡Decisión correcta!\nReputación: ' + res.reputacion
+        ? '¡Decisión correcta!' + (res.racha >= 2 ? ' Racha x' + Math.min(res.racha, 5) : '') + '\nReputación: ' + res.reputacion
         : '¡Penalización!\n' + res.motivo + '\nReputación: ' + res.reputacion;
       cartelTxt.textContent = msg;
       cartel.hidden = false;
       Sonido.efecto(res.acierto ? 'acierto' : 'error');
       if (res.fin) finPendiente = res.fin;
     });
+  }
+  function tiempoAgotado() {
+    const res = partida.agotarTiempo();
+    if (!res) return;
+    pararTiempo();
+    decision.hidden = true; anuncio.hidden = true; ocultarGlobos();
+    limpiarMesa(); cerrarLibro(); limpiarVentanilla(); bDocumentos.hidden = true;
+    cartelTxt.textContent = '¡Se acabó el tiempo!\nEl ingresante se retiró.\nReputación: ' + res.reputacion;
+    cartel.hidden = false;
+    Sonido.efecto('error');
+    if (res.fin) finPendiente = res.fin;
   }
   dAceptar.addEventListener('click', () => procesarDecision(true));
   dRechazar.addEventListener('click', () => procesarDecision(false));
@@ -1391,12 +1556,14 @@ function iniciarVistaEscritorio() {
   /* ---------- Fin de partida ---------- */
   const fGuardar = boton(fin, rect(0.45, 0.718, 0.10, 0.07), 'e_b_guardar_puntaje', null, true);
   const fVolver = boton(fin, rect(0.45, 0.81, 0.10, 0.07), 'e_b_volver_menu', null, true);
+  const fStats = h('div', 'fin-stats', rect(0.15, 0.915, 0.70, 0.06), fin);
   cAceptar.addEventListener('click', () => {
     cartel.hidden = true;
     if (finPendiente) {
       const resultado = finPendiente; finPendiente = null;
       decision.hidden = true; cerrarLibro(); ocultarGlobos(); anuncio.hidden = true;
       fin.style.backgroundImage = url(resultado === 'VICTORIA' ? 'e_victoria' : 'e_derrota');
+      fStats.textContent = resumenStats(partida);
       mostrarPantalla(fin);
       Sonido.efecto(resultado === 'VICTORIA' ? 'victoria' : 'derrota');
     }
@@ -1446,6 +1613,7 @@ function iniciarVistaEscritorio() {
     Sonido.efecto('llamar');
     bDocumentos.hidden = true; limpiarMesa(); ocultarGlobos();
     mostrarRestantes(); mostrarIngresante(); restaurarLibro();
+    arrancarTiempo();
   });
   bLibro.addEventListener('click', alternarLibro);
   bInterrogar.addEventListener('click', () => {
@@ -1476,6 +1644,7 @@ function iniciarVistaEscritorio() {
   /* ---------- Flujo general ---------- */
   function iniciarJuego() {
     partida.iniciar();
+    pararTiempo();
     limpiarMesa(); cerrarLibro(); limpiarVentanilla(); ocultarGlobos();
     bDocumentos.hidden = true; 
     [decision, cartel, anuncio].forEach(d => { d.hidden = true; });
@@ -1484,6 +1653,7 @@ function iniciarVistaEscritorio() {
     mostrarPantalla(juego);
   }
   function volverAlMenu() {
+    pararTiempo();
     [decision, cartel, anuncio, ranking].forEach(d => { d.hidden = true; });
     mostrarPantalla(menu);
   }
