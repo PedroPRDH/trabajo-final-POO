@@ -157,6 +157,8 @@ La carpeta `docs/` contiene una versión del juego que corre en cualquier navega
 
 ## Cómo agregar personajes nuevos (versión web)
 
+Los 5 personajes originales de la versión web (minero, viajera naranja, robot mensajero, alien de tres ojos y guardián de cristal) están dibujados por código con `python3 tools/crear_personajes.py`; se pueden retocar ahí o reemplazar por arte propio siguiendo estos pasos.
+
 1. Dibujá tres imágenes PNG con fondo transparente: `ing_<id>.png` (cuerpo, 380 px de alto), `foto_carnet_<id>.png` (170 px) y `hue_<id>.png` (huella, 110 px).
 2. Convertilas con `python3 tools/importar_sprites.py <carpeta>`; las deja en `docs/img/` como WebP.
 3. En `docs/index.html`, agregá una línea a `PERFILES`, por ejemplo: `{ aspecto: 'zorro', raza: 'ALIEN', foto: 'carnet_zorro', hue: 'huella_zorro' }`.
