@@ -7,75 +7,151 @@ Uso:  python3 tools/crear_personajes.py            # escribe los WebP en docs/im
 Por cada personaje crea:
   ing_<id>.webp          cuerpo entero (380 px de alto)
   foto_carnet_<id>.webp  busto para el carnet (170 px de alto)
-  hue_<id>.webp          huella dactilar (110 px de alto)
-Todo con fondo transparente. Se dibuja en una grilla de 64x76 y se amplía x5 sin suavizar.
+  hue_huella_<id>.webp   huella dactilar (110 px de alto)
+Todo con fondo transparente. Se dibuja en una grilla de 80x95 y se amplía x4 sin suavizar.
+
+Técnicas para acercarse al arte original: iluminación desde arriba a la izquierda con 5 tonos y trama
+(dithering), textura de tela/metal con ruido, contornos del color de cada zona (no negro puro), líneas
+internas donde una pieza se apoya sobre otra, ojos con reflejo y gemas con brillo.
 """
 import math, random, sys, pathlib
 from PIL import Image
 
-W, H, ESC = 64, 76, 5
+W, H, ESC = 80, 95, 4
 DESTINO = pathlib.Path(__file__).resolve().parent.parent / 'docs' / 'img'
+BAYER = ((0, 8, 2, 10), (12, 4, 14, 6), (3, 11, 1, 9), (15, 7, 13, 5))
 
 
 def hexa(c):
-    return tuple(int(c[i:i + 2], 16) for i in (1, 3, 5))
+    c = c.lstrip('#')
+    return tuple(int(c[i:i + 2], 16) for i in (0, 2, 4))
 
-def mezclar(a, b, t):
-    return tuple(round(a[i] + (b[i] - a[i]) * t) for i in range(3))
+def mez(a, b, t):
+    return tuple(max(0, min(255, round(a[i] + (b[i] - a[i]) * t))) for i in range(3))
 
-def claro(c): return mezclar(c, (255, 255, 255), 0.28)
-def oscuro(c): return mezclar(c, (10, 5, 25), 0.38)
+def rampa(c):
+    """5 tonos: sombra profunda, sombra, base, luz, brillo (las sombras se enfrían y las luces se calientan)."""
+    return [mez(c, (18, 10, 48), 0.62), mez(c, (30, 20, 70), 0.38), c, mez(c, (255, 244, 210), 0.22), mez(c, (255, 252, 235), 0.55)]
 
 
 class Lienzo:
-    def __init__(self):
+    def __init__(self, semilla=1):
         self.p = [[None] * W for _ in range(H)]
+        self.parte = [[0] * W for _ in range(H)]
+        self.n = 0
+        self.rnd = random.Random(semilla)
 
-    def px(self, x, y, c):
-        x, y = int(x), int(y)
+    # -- primitivas -------------------------------------------------
+    def _poner(self, x, y, c):
         if 0 <= x < W and 0 <= y < H:
             self.p[y][x] = c
+            self.parte[y][x] = self.n
 
-    def rect(self, x0, y0, x1, y1, c, sombra=True):
-        """Rectángulo [x0,x1) x [y0,y1) con luz a la izquierda y sombra a la derecha."""
-        ancho = max(1, x1 - x0)
-        for y in range(y0, y1):
-            for x in range(x0, x1):
-                t = (x - x0) / ancho
-                self.px(x, y, claro(c) if (sombra and t < 0.22) else oscuro(c) if (sombra and t > 0.74) else c)
+    def _tono(self, r, luz, x, y, ruido):
+        v = (luz + 1) / 2 * 4 + (BAYER[y % 4][x % 4] / 16 - 0.5) * 0.5 + self.rnd.uniform(-ruido, ruido)
+        return r[max(0, min(4, int(round(v))))]
 
-    def elipse(self, cx, cy, rx, ry, c, sombra=True):
+    def elipse(self, cx, cy, rx, ry, c, ruido=0.07, luz_extra=0.0):
+        """Volumen esférico."""
+        self.n += 1
+        r = rampa(c)
         for y in range(int(cy - ry) - 1, int(cy + ry) + 2):
             for x in range(int(cx - rx) - 1, int(cx + rx) + 2):
                 dx, dy = (x + 0.5 - cx) / rx, (y + 0.5 - cy) / ry
-                if dx * dx + dy * dy <= 1:
-                    t = dx * 0.6 + dy * 0.55
-                    self.px(x, y, claro(c) if (sombra and t < -0.38) else oscuro(c) if (sombra and t > 0.42) else c)
+                d2 = dx * dx + dy * dy
+                if d2 <= 1:
+                    nz = math.sqrt(1 - d2)
+                    luz = -0.55 * dx - 0.62 * dy + 0.56 * nz - 0.42 + luz_extra
+                    self._poner(x, y, self._tono(r, luz * 1.5, x, y, ruido))
 
-    def linea(self, x0, y0, x1, y1, c, grosor=1):
+    def cilindro(self, x0, y0, x1, y1, c, ruido=0.07, radio=2, luz_extra=0.0):
+        """Volumen cilíndrico vertical (la luz cambia de izquierda a derecha) con esquinas redondeadas."""
+        self.n += 1
+        r = rampa(c)
+        cx, ancho = (x0 + x1) / 2, (x1 - x0) / 2
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                if radio and (x - x0 + y - y0 < radio or x1 - 1 - x + y - y0 < radio or x - x0 + y1 - 1 - y < radio or x1 - 1 - x + y1 - 1 - y < radio):
+                    continue
+                dx = (x + 0.5 - cx) / ancho
+                luz = -0.9 * dx + 0.25 - 0.18 * (y - y0) / max(1, y1 - y0) + luz_extra
+                self._poner(x, y, self._tono(r, luz * 1.35, x, y, ruido))
+
+    def placa(self, x0, y0, x1, y1, c, ruido=0.1, radio=1):
+        """Placa plana (metal, cuero): luz en el borde superior/izquierdo, sombra abajo/derecha."""
+        self.n += 1
+        r = rampa(c)
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                if radio and (x - x0 + y - y0 < radio or x1 - 1 - x + y - y0 < radio or x - x0 + y1 - 1 - y < radio or x1 - 1 - x + y1 - 1 - y < radio):
+                    continue
+                i = 2
+                if y == y0 or x == x0: i = 3
+                if y >= y1 - 2 or x >= x1 - 2: i = 1
+                if y == y0 and x < x0 + (x1 - x0) // 2: i = 4
+                t = self.rnd.uniform(-ruido, ruido)
+                self._poner(x, y, r[max(0, min(4, int(round(i + t * 3))))])
+
+    def linea(self, x0, y0, x1, y1, c, grosor=2, ruido=0.1):
+        self.n += 1
+        r = rampa(c)
         n = int(max(abs(x1 - x0), abs(y1 - y0))) * 2 + 1
         for i in range(n + 1):
             x, y = x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n
             for a in range(grosor):
                 for b in range(grosor):
-                    self.px(x + a, y + b, c)
+                    k = 3 if (a == 0 and b == 0) else 1 if (a == grosor - 1 and b == grosor - 1) else 2
+                    self._poner(int(x) + a, int(y) + b, r[max(0, min(4, k + (1 if self.rnd.random() < ruido else 0)))])
 
-    def simetrico(self, fn):
-        """Ejecuta fn(espejo) dos veces: una normal y otra reflejada respecto al eje central."""
-        fn(lambda x: x)
-        fn(lambda x: W - 1 - x)
+    def punto(self, x, y, c):
+        self.n += 1
+        self._poner(x, y, c)
 
-    def contorno(self, c=(20, 12, 24)):
-        nuevo = [fila[:] for fila in self.p]
+    def brillo(self, x, y, c=(255, 255, 255)):
+        self._poner(x, y, c)
+
+    def gema(self, cx, cy, rx, ry, c):
+        """Gema luminosa: núcleo claro, borde saturado y un reflejo."""
+        self.elipse(cx, cy, rx, ry, mez(c, (0, 0, 0), 0.25), ruido=0.05)
+        self.elipse(cx, cy, rx - 1, ry - 1, c, ruido=0.0, luz_extra=0.5)
+        self.brillo(int(cx - rx / 2), int(cy - ry / 2))
+
+    def ojo(self, cx, cy, rx, ry, iris, pupila=(12, 8, 24)):
+        self.elipse(cx, cy, rx, ry, pupila, ruido=0.0)
+        if iris:
+            self.elipse(cx, cy + 0.6, rx - 1.2, ry - 1.2, iris, ruido=0.0, luz_extra=0.2)
+            self.elipse(cx, cy + 0.6, max(1, rx - 2.4), max(1, ry - 2.4), pupila, ruido=0.0)
+        self.brillo(int(cx - rx * 0.4), int(cy - ry * 0.5))
+        self.brillo(int(cx - rx * 0.4) + 1, int(cy - ry * 0.5))
+        self.brillo(int(cx + rx * 0.35), int(cy + ry * 0.4), (210, 235, 255))
+
+    # -- acabado ----------------------------------------------------
+    def acabado(self):
+        # 1) línea interna: el borde de una pieza que queda debajo de otra se oscurece
+        res = [fila[:] for fila in self.p]
+        for y in range(H):
+            for x in range(W):
+                c = self.p[y][x]
+                if c is None:
+                    continue
+                for dx, dy in ((1, 0), (0, 1)):
+                    xx, yy = x + dx, y + dy
+                    if xx < W and yy < H and self.p[yy][xx] is not None and self.parte[yy][xx] > self.parte[y][x] + 0:
+                        if self.parte[yy][xx] != self.parte[y][x]:
+                            res[y][x] = mez(c, (15, 8, 30), 0.5)
+        self.p = res
+        # 2) contorno exterior del color de la zona (no negro puro)
+        out = [fila[:] for fila in self.p]
         for y in range(H):
             for x in range(W):
                 if self.p[y][x] is None:
                     for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                         xx, yy = x + dx, y + dy
                         if 0 <= xx < W and 0 <= yy < H and self.p[yy][xx] is not None:
-                            nuevo[y][x] = c
+                            out[y][x] = mez(self.p[yy][xx], (10, 4, 20), 0.78)
                             break
-        self.p = nuevo
+        self.p = out
+        return self
 
     def imagen(self, caja=None):
         x0, y0, x1, y1 = caja or (0, 0, W, H)
@@ -88,181 +164,243 @@ class Lienzo:
         return im
 
 
-# ---------------------------------------------------------------- personajes
-def ojos(l, y, sep, c_ojo, c_brillo=(255, 255, 255), tam=2):
-    for lado in (-1, 1):
-        x = 32 + lado * sep
-        l.rect(x - tam // 2 - (0 if lado > 0 else 0), y, x - tam // 2 + tam, y + tam + 1, c_ojo, False)
-        l.px(x - tam // 2 + (1 if lado < 0 else 0), y, c_brillo)
-
-def mundo_minero():
-    l = Lienzo()
-    piel, casco, chaleco, mono, bota = map(hexa, ('#c68a5a', '#f2c230', '#e8741c', '#2f4a7a', '#3a2a22'))
-    # piernas y botas
-    l.rect(24, 52, 31, 70, mono); l.rect(33, 52, 40, 70, mono)
-    l.rect(22, 69, 31, 74, bota); l.rect(33, 69, 42, 74, bota)
-    # torso con chaleco y franjas reflectantes
-    l.rect(20, 32, 44, 55, mono)
-    l.rect(22, 32, 42, 54, chaleco)
-    l.rect(22, 40, 42, 43, (235, 235, 215), False); l.rect(22, 47, 42, 50, (235, 235, 215), False)
-    l.rect(31, 32, 33, 54, oscuro(chaleco), False)
-    # brazos
-    l.rect(15, 33, 21, 52, mono); l.rect(43, 33, 49, 52, mono)
-    l.elipse(18, 54, 4, 4, piel); l.elipse(46, 54, 4, 4, piel)
-    # pico en la mano derecha
-    l.rect(53, 28, 55, 62, hexa('#6a4a2b')); l.rect(44, 25, 62, 29, hexa('#9aa3ad')); l.rect(44, 28, 47, 31, hexa('#9aa3ad'))
-    # cuello, cabeza, bigote
-    l.rect(28, 28, 36, 34, oscuro(piel))
-    l.elipse(32, 21, 11, 11, piel)
-    l.rect(24, 24, 40, 27, hexa('#5a3a24'), False); l.rect(27, 26, 37, 29, hexa('#5a3a24'), False)
-    ojos(l, 19, 4, (30, 20, 20))
-    l.rect(30, 21, 34, 23, oscuro(piel), False)
-    # casco con linterna
-    l.elipse(32, 12, 13, 9, casco)
-    l.rect(18, 12, 46, 16, casco); l.rect(16, 15, 48, 18, oscuro(casco))
-    l.rect(28, 6, 36, 12, hexa('#d9dde3'), False); l.rect(30, 8, 34, 11, (255, 250, 170), False)
-    l.contorno(); return l
-
-def mundo_robot():
-    l = Lienzo()
-    acero, oscuro_m, cian, naranja = map(hexa, ('#9aa6b4', '#4a5563', '#43e6ff', '#e8741c'))
-    # piernas
-    l.rect(24, 54, 31, 70, oscuro_m); l.rect(33, 54, 40, 70, oscuro_m)
-    l.rect(21, 68, 31, 74, acero); l.rect(33, 68, 43, 74, acero)
+# ---------------------------------------------------------------- personajes (centro x = 40)
+def minero():
+    l = Lienzo(11)
+    piel, casco, chaleco, mono, cuero, metal = map(hexa, ('c98e5e', 'f4c52e', 'ec7a1c', '35507e', '6a4128', 'a7b0bd'))
+    # botas y piernas
+    l.cilindro(29, 66, 38, 88, mono); l.cilindro(42, 66, 51, 88, mono)
+    l.placa(26, 85, 39, 93, cuero, radio=2); l.placa(41, 85, 54, 93, cuero, radio=2)
+    l.placa(26, 90, 39, 93, hexa('2b1a12')); l.placa(41, 90, 54, 93, hexa('2b1a12'))
+    # pico (detrás del brazo derecho)
+    l.cilindro(64, 34, 67, 82, cuero, radio=1)
+    l.placa(52, 31, 76, 36, metal, radio=2); l.placa(52, 34, 57, 41, metal, radio=1); l.placa(71, 34, 76, 41, metal, radio=1)
     # torso
-    l.rect(19, 32, 45, 56, acero)
-    l.rect(24, 36, 40, 46, (18, 28, 40), False); l.rect(26, 38, 38, 44, cian, False)
-    for x in (28, 31, 34): l.rect(x, 39, x + 2, 43, (18, 28, 40), False)
-    l.rect(20, 50, 44, 54, oscuro_m)
-    # correa y bolso de mensajero
-    l.linea(21, 32, 42, 55, naranja, 3); l.rect(38, 50, 50, 62, naranja); l.rect(38, 50, 50, 53, oscuro(naranja), False)
-    l.rect(42, 54, 46, 57, (240, 240, 230), False)
-    # brazos
-    l.rect(12, 33, 19, 52, acero); l.rect(45, 33, 52, 52, acero)
-    l.rect(11, 52, 20, 58, oscuro_m); l.rect(44, 52, 53, 58, oscuro_m)
-    # cabeza caja con visor y antena
-    l.rect(28, 28, 36, 33, oscuro_m)
-    l.rect(20, 10, 44, 29, acero)
-    l.rect(22, 15, 42, 24, (18, 28, 40), False); l.rect(24, 17, 40, 22, cian, False)
-    l.rect(27, 17, 29, 22, (255, 255, 255), False); l.rect(35, 17, 37, 22, (255, 255, 255), False)
-    l.rect(31, 4, 33, 10, oscuro_m, False); l.elipse(32, 4, 3, 3, naranja, False)
-    l.rect(16, 15, 20, 23, oscuro_m); l.rect(44, 15, 48, 23, oscuro_m)
-    l.contorno(); return l
-
-def mundo_alien3():
-    l = Lienzo()
-    piel, tunica, oro = map(hexa, ('#3fc7a5', '#6a3fb5', '#f2c230'))
-    # piernas delgadas
-    l.rect(26, 54, 31, 72, piel); l.rect(33, 54, 38, 72, piel)
-    l.elipse(27, 73, 5, 2, oscuro(piel)); l.elipse(37, 73, 5, 2, oscuro(piel))
-    # túnica
-    l.rect(21, 33, 43, 58, tunica)
-    l.rect(21, 33, 43, 36, oro, False); l.rect(21, 55, 43, 58, oro, False)
-    l.rect(31, 33, 33, 58, oscuro(tunica), False)
-    l.elipse(32, 45, 3, 3, hexa('#43e6ff'), False)
-    # brazos largos
-    l.rect(15, 34, 21, 56, piel); l.rect(43, 34, 49, 56, piel)
-    l.elipse(18, 59, 4, 4, piel); l.elipse(46, 59, 4, 4, piel)
-    # cabeza grande y alargada
-    l.rect(29, 30, 35, 34, oscuro(piel))
-    l.elipse(32, 17, 13, 15, piel)
-    # tres ojos amarillos con pupila
-    for x, y in ((24, 15), (32, 11), (40, 15)):
-        l.elipse(x, y, 3.2, 3.2, hexa('#ffe45c'), False); l.rect(int(x) - 1, int(y) - 1, int(x) + 1, int(y) + 2, (25, 10, 40), False)
-        l.px(int(x) - 2, int(y) - 2, (255, 255, 255))
-    l.rect(29, 25, 36, 26, oscuro(piel), False)
-    # crestas en la cabeza
-    for x in (26, 29, 32, 35, 38):
-        l.rect(x, 1 if x == 32 else 3, x + 2, 5, oscuro(piel), False)
-    l.contorno(); return l
-
-def mundo_guardian():
-    l = Lienzo()
-    tela, tela_osc, cristal, borde = map(hexa, ('#5b3aa0', '#3a2370', '#6ff0ff', '#c9b8ff'))
-    # túnica larga
-    l.rect(19, 34, 45, 74, tela)
-    l.rect(19, 68, 45, 74, tela_osc); l.rect(31, 34, 33, 74, tela_osc, False)
-    l.rect(19, 56, 45, 59, hexa('#f2c230'), False)
-    # hombreras de cristal
-    for lado in (-1, 1):
-        cx = 32 + lado * 15
-        l.elipse(cx, 36, 6, 5, cristal); l.rect(int(cx) - 1, 30, int(cx) + 2, 36, claro(cristal), False)
+    l.cilindro(25, 40, 55, 70, mono, radio=3)
+    l.cilindro(27, 40, 53, 66, chaleco, radio=3)
+    l.placa(27, 50, 53, 54, hexa('e8e8d0'), radio=0); l.placa(27, 58, 53, 62, hexa('e8e8d0'), radio=0)
+    l.placa(39, 40, 41, 66, mez(chaleco, (0, 0, 0), 0.4), radio=0)
+    l.placa(25, 64, 55, 69, cuero, radio=1); l.placa(37, 64, 43, 69, hexa('d9b44a'), radio=1)
+    l.placa(30, 55, 36, 61, mez(mono, (0, 0, 0), 0.2), radio=1)  # bolsillo
     # brazos y manos
-    l.rect(14, 38, 20, 56, tela); l.rect(44, 38, 50, 56, tela)
-    l.elipse(17, 58, 3.5, 3.5, hexa('#d9b08c')); l.elipse(47, 58, 3.5, 3.5, hexa('#d9b08c'))
-    # bastón con cristal
-    l.rect(52, 20, 54, 72, hexa('#6a4a2b')); l.elipse(53, 17, 4, 6, cristal)
-    l.px(52, 14, (255, 255, 255))
-    # gema pectoral
-    l.elipse(32, 42, 4, 5, cristal)
-    # capucha y cara en sombra con ojos brillantes
-    l.elipse(32, 21, 15, 17, tela)
-    l.elipse(32, 24, 9, 11, (12, 8, 28), False)
-    for x in (27, 35):
-        l.rect(x, 22, x + 3, 25, cristal, False)
-    l.rect(26, 33, 38, 36, tela_osc)
-    l.rect(30, 2, 34, 6, borde, False)
-    l.contorno(); return l
+    l.cilindro(17, 41, 26, 64, mono, radio=3); l.cilindro(54, 41, 63, 64, mono, radio=3)
+    l.placa(17, 58, 26, 62, hexa('e8e8d0'), radio=0); l.placa(54, 58, 63, 62, hexa('e8e8d0'), radio=0)
+    l.elipse(21.5, 67, 5, 5, piel); l.elipse(58.5, 67, 5, 5, piel)
+    # cuello, cabeza, barba y bigote
+    l.cilindro(35, 33, 45, 42, mez(piel, (0, 0, 0), 0.25), radio=1)
+    l.elipse(40, 26, 13, 13.5, piel)
+    l.elipse(40, 36, 11, 6.5, hexa('5a3a24'), ruido=0.2)
+    l.elipse(40, 32, 8.5, 3, hexa('6a4228'), ruido=0.2)
+    l.ojo(34, 27.5, 3, 2.8, None, (30, 20, 20)); l.ojo(46, 27.5, 3, 2.8, None, (30, 20, 20))
+    l.placa(31, 24, 38, 26, hexa('4a2e1c'), radio=0); l.placa(42, 24, 49, 26, hexa('4a2e1c'), radio=0)
+    # casco
+    l.elipse(40, 16, 16, 12, casco, ruido=0.1)
+    l.placa(22, 17, 58, 22, casco, radio=2)
+    l.placa(21, 21, 59, 24, mez(casco, (60, 20, 0), 0.4), radio=1)
+    l.placa(35, 6, 45, 15, hexa('d4d9e0'), radio=1); l.gema(40, 10.5, 3.5, 3, hexa('fff7a8'))
+    l.placa(29, 11, 31, 20, mez(casco, (255, 255, 255), 0.3), radio=0)
+    return l.acabado()
 
-def mundo_viajera():
-    l = Lienzo()
-    piel, pelo, chaqueta, pant, bufanda = map(hexa, ('#e8b890', '#c4421f', '#3f7a4a', '#4a3a5a', '#f2c230'))
-    # piernas y botas
-    l.rect(24, 52, 31, 70, pant); l.rect(33, 52, 40, 70, pant)
-    l.rect(22, 68, 31, 74, hexa('#5a3a22')); l.rect(33, 68, 42, 74, hexa('#5a3a22'))
-    # chaqueta
-    l.rect(20, 33, 44, 56, chaqueta)
-    l.rect(31, 33, 33, 56, oscuro(chaqueta), False)
-    l.rect(20, 50, 44, 53, hexa('#5a3a22'), False); l.rect(30, 50, 34, 54, hexa('#d9b44a'), False)
-    # bolso cruzado
-    l.linea(21, 33, 42, 54, hexa('#8a5a2b'), 2); l.rect(38, 52, 49, 62, hexa('#8a5a2b'))
+
+def robot():
+    l = Lienzo(22)
+    acero, osc, cian, nar, cuero = map(hexa, ('9fabba', '4b5766', '47e8ff', 'ee7a1c', '8a4f25'))
+    # piernas y pies
+    l.cilindro(30, 68, 38, 86, osc); l.cilindro(42, 68, 50, 86, osc)
+    l.placa(26, 84, 39, 93, acero, radio=2); l.placa(41, 84, 54, 93, acero, radio=2)
+    l.placa(30, 66, 38, 70, hexa('d6dde6'), radio=1); l.placa(42, 66, 50, 70, hexa('d6dde6'), radio=1)
+    # torso
+    l.placa(22, 40, 58, 70, acero, radio=3)
+    l.placa(27, 44, 53, 58, hexa('141c28'), radio=2)
+    l.gema(40, 51, 10, 4.5, cian)
+    for x in (33, 38, 43): l.placa(x, 47, x + 2, 55, hexa('141c28'), radio=0)
+    for i in range(4): l.placa(26 + i * 7, 62, 30 + i * 7, 66, osc, radio=0)
+    l.placa(22, 66, 58, 70, osc, radio=1)
+    # tornillos
+    for x, y in ((25, 43), (55, 43), (25, 66), (55, 66)): l.punto(x, y, hexa('d6dde6'))
     # brazos
-    l.rect(15, 34, 21, 53, chaqueta); l.rect(43, 34, 49, 53, chaqueta)
-    l.elipse(18, 55, 4, 4, piel); l.elipse(46, 55, 4, 4, piel)
+    l.placa(11, 42, 22, 64, acero, radio=3); l.placa(58, 42, 69, 64, acero, radio=3)
+    l.placa(10, 62, 23, 74, osc, radio=3); l.placa(57, 62, 70, 74, osc, radio=3)
+    l.placa(12, 47, 21, 50, cian, radio=0); l.placa(59, 47, 68, 50, cian, radio=0)
+    # correa y bolso de mensajero
+    l.linea(26, 41, 52, 68, cuero, 3)
+    l.placa(46, 62, 64, 80, nar, radio=2); l.placa(46, 62, 64, 68, mez(nar, (0, 0, 0), 0.35), radio=1)
+    l.placa(53, 66, 57, 70, hexa('d9b44a'), radio=0)
+    l.placa(50, 73, 60, 77, hexa('f4eee0'), radio=0)
+    # cuello y cabeza
+    l.cilindro(34, 34, 46, 42, osc, radio=1)
+    l.placa(22, 11, 58, 36, acero, radio=4)
+    l.placa(26, 17, 54, 29, hexa('141c28'), radio=3)
+    l.gema(34, 23, 4.5, 3.5, cian); l.gema(46, 23, 4.5, 3.5, cian)
+    l.placa(28, 31, 52, 33, osc, radio=0)
+    for x in (30, 35, 40, 45, 50): l.punto(x, 32, hexa('d6dde6'))
+    l.placa(16, 18, 22, 30, osc, radio=1); l.placa(58, 18, 64, 30, osc, radio=1)
+    l.cilindro(38, 4, 42, 12, osc, radio=0); l.gema(40, 4, 3.5, 3.5, nar)
+    return l.acabado()
+
+
+def alien3():
+    l = Lienzo(33)
+    piel, tun, oro, cian = map(hexa, ('3cc9a6', '6d42b8', 'f4c52e', '47e8ff'))
+    # piernas y pies
+    l.cilindro(32, 68, 38, 90, piel, radio=2); l.cilindro(42, 68, 48, 90, piel, radio=2)
+    l.elipse(33, 91, 7, 3, mez(piel, (0, 0, 0), 0.2)); l.elipse(47, 91, 7, 3, mez(piel, (0, 0, 0), 0.2))
+    # túnica con ribetes dorados
+    l.cilindro(25, 44, 55, 72, tun, radio=3)
+    l.placa(25, 44, 55, 48, oro, radio=1); l.placa(25, 68, 55, 72, oro, radio=1)
+    l.placa(39, 48, 41, 68, mez(tun, (0, 0, 0), 0.4), radio=0)
+    l.linea(28, 50, 38, 66, mez(tun, (255, 255, 255), 0.15), 1); l.linea(52, 50, 42, 66, mez(tun, (255, 255, 255), 0.15), 1)
+    l.placa(25, 58, 55, 61, hexa('3a2370'), radio=0)
+    l.gema(40, 59.5, 4, 4, cian)
+    # brazos largos y manos de tres dedos
+    l.cilindro(16, 45, 25, 66, piel, radio=3); l.cilindro(55, 45, 64, 66, piel, radio=3)
+    l.placa(16, 62, 25, 66, oro, radio=0); l.placa(55, 62, 64, 66, oro, radio=0)
+    for x0 in (14, 59):
+        l.elipse(x0 + 4, 70, 5, 5, piel)
+        for k in range(3): l.cilindro(x0 + k * 3, 72, x0 + k * 3 + 2, 79, mez(piel, (0, 0, 0), 0.1), radio=0)
+    # cuello y cabeza alargada
+    l.cilindro(36, 38, 44, 46, mez(piel, (0, 0, 0), 0.25), radio=1)
+    l.elipse(40, 22, 17, 20, piel)
+    # crestas
+    for i, x in enumerate((30, 34, 38, 42, 46, 50)):
+        l.cilindro(x - 1, 1 if i in (2, 3) else 4, x + 2, 9, mez(piel, (0, 0, 0), 0.18), radio=1)
+    # tres ojos
+    for x, y in ((29, 20), (40, 13), (51, 20)):
+        l.elipse(x, y, 4.6, 4.6, hexa('ffe65c'), ruido=0.05)
+        l.ojo(x, y + 0.5, 2.6, 3.2, None, (25, 10, 40))
+    l.placa(36, 32, 44, 33, mez(piel, (0, 0, 0), 0.45), radio=0)
+    l.punto(39, 26, mez(piel, (0, 0, 0), 0.3)); l.punto(41, 26, mez(piel, (0, 0, 0), 0.3))
+    return l.acabado()
+
+
+def guardian():
+    l = Lienzo(44)
+    tela, osc, cristal, oro, piel = map(hexa, ('5d3ca3', '36206e', '70f0ff', 'f4c52e', 'd9b08c'))
+    # túnica larga
+    l.cilindro(22, 44, 58, 93, tela, radio=3)
+    l.placa(22, 86, 58, 93, osc, radio=2)
+    l.placa(39, 44, 41, 93, osc, radio=0)
+    for x in (28, 33, 47, 52): l.linea(x, 52, x + (-1 if x < 40 else 1), 88, mez(tela, (0, 0, 0), 0.25), 1)
+    l.placa(22, 70, 58, 74, oro, radio=0)
+    for x in range(26, 56, 6): l.punto(x, 72, hexa('fff2b0'))
+    # brazos, mangas y manos
+    l.cilindro(13, 48, 23, 70, tela, radio=3); l.cilindro(57, 48, 67, 70, tela, radio=3)
+    l.placa(13, 66, 23, 70, oro, radio=0); l.placa(57, 66, 67, 70, oro, radio=0)
+    l.elipse(18, 73, 4.6, 4.6, piel); l.elipse(62, 73, 4.6, 4.6, piel)
+    # bastón con cristal
+    l.cilindro(66, 24, 69, 92, hexa('6e4a2a'), radio=1)
+    l.elipse(67.5, 17, 5, 9, cristal)
+    l.linea(63, 26, 72, 26, oro, 2)
+    # hombreras de cristal
+    for cx in (22, 58):
+        l.elipse(cx, 45, 8, 6.5, cristal); l.elipse(cx, 44, 4.5, 3.5, mez(cristal, (255, 255, 255), 0.5), ruido=0.0)
+    # gema pectoral con engarce
+    l.placa(34, 50, 46, 66, oro, radio=3); l.gema(40, 58, 4, 6.5, cristal)
+    # capucha y rostro en sombra
+    l.elipse(40, 27, 20, 23, tela)
+    l.elipse(40, 31, 12.5, 14, hexa('0c0820'), ruido=0.0)
+    l.placa(26, 38, 54, 45, osc, radio=2)
+    # ojos brillantes
+    for x in (34, 46):
+        l.placa(x - 3, 29, x + 3, 33, cristal, radio=1, ruido=0.0); l.brillo(x - 2, 29, (240, 255, 255))
+    l.placa(37, 3, 43, 9, oro, radio=1); l.gema(40, 6, 2.5, 2.5, cristal)
+    return l.acabado()
+
+
+def viajera():
+    l = Lienzo(55)
+    piel, pelo, chaq, pant, bufanda, cuero = map(hexa, ('ebbb92', 'c84620', '3f7d4c', '4c3b5e', 'f4c52e', '8a5328'))
+    # piernas y botas
+    l.cilindro(29, 66, 38, 88, pant); l.cilindro(42, 66, 51, 88, pant)
+    l.placa(26, 84, 39, 93, hexa('5c3a20'), radio=2); l.placa(41, 84, 54, 93, hexa('5c3a20'), radio=2)
+    l.placa(26, 80, 39, 85, hexa('7a4e2c'), radio=1); l.placa(41, 80, 54, 85, hexa('7a4e2c'), radio=1)
+    # chaqueta
+    l.cilindro(25, 42, 55, 70, chaq, radio=3)
+    l.placa(39, 42, 41, 70, mez(chaq, (0, 0, 0), 0.4), radio=0)
+    l.placa(25, 62, 55, 66, cuero, radio=1); l.placa(37, 61, 43, 67, hexa('e0b84a'), radio=1)
+    l.placa(28, 52, 35, 58, mez(chaq, (0, 0, 0), 0.25), radio=1)
+    # brazos y guantes
+    l.cilindro(16, 43, 26, 64, chaq, radio=3); l.cilindro(54, 43, 64, 64, chaq, radio=3)
+    l.placa(16, 60, 26, 64, cuero, radio=0); l.placa(54, 60, 64, 64, cuero, radio=0)
+    l.elipse(21, 68, 5, 5, piel); l.elipse(59, 68, 5, 5, piel)
+    # bolso cruzado
+    l.linea(28, 42, 52, 66, cuero, 3)
+    l.placa(48, 62, 66, 78, cuero, radio=2); l.placa(48, 62, 66, 67, mez(cuero, (0, 0, 0), 0.3), radio=1)
+    l.placa(55, 65, 59, 69, hexa('e0b84a'), radio=0)
     # bufanda
-    l.rect(24, 29, 40, 35, bufanda); l.rect(36, 33, 41, 46, bufanda)
+    l.cilindro(30, 36, 50, 44, bufanda, radio=2); l.cilindro(46, 40, 53, 58, bufanda, radio=2)
+    l.placa(46, 56, 53, 59, mez(bufanda, (150, 60, 0), 0.4), radio=0)
     # cabeza, pelo con rodete, antiparras
-    l.elipse(32, 20, 10.5, 11, piel)
-    l.elipse(32, 12, 12, 8, pelo); l.rect(20, 12, 24, 24, pelo); l.rect(40, 12, 44, 24, pelo)
-    l.elipse(32, 3, 5, 4, pelo)
-    l.rect(22, 11, 42, 14, hexa('#8a8f98'), False)
-    for x in (26, 36):
-        l.elipse(x, 12, 3.2, 2.6, hexa('#43e6ff'), False); l.px(x - 1, 11, (255, 255, 255))
-    ojos(l, 19, 4, (40, 25, 20))
-    l.rect(30, 23, 34, 24, hexa('#b0604a'), False)
-    l.contorno(); return l
+    l.elipse(40, 27, 12.5, 13, piel)
+    l.elipse(40, 17, 15, 11, pelo, ruido=0.2)
+    l.cilindro(24, 18, 29, 36, pelo, ruido=0.2, radio=2); l.cilindro(51, 18, 56, 36, pelo, ruido=0.2, radio=2)
+    l.elipse(40, 5, 7, 5.5, pelo, ruido=0.2)
+    l.placa(26, 15, 54, 19, hexa('8b929c'), radio=1)
+    for x in (33, 47):
+        l.elipse(x, 17, 5, 4.2, hexa('3a4250'), ruido=0.0); l.elipse(x, 17, 3.6, 3, hexa('47e8ff'), ruido=0.0, luz_extra=0.4)
+        l.brillo(x - 2, 16)
+    l.ojo(34, 27, 2.6, 3, None, (40, 24, 18)); l.ojo(46, 27, 2.6, 3, None, (40, 24, 18))
+    l.placa(37, 33, 43, 34, hexa('b4604a'), radio=0)
+    l.punto(38, 30, mez(piel, (0, 0, 0), 0.25)); l.punto(42, 30, mez(piel, (0, 0, 0), 0.25))
+    return l.acabado()
 
 
 # ---------------------------------------------------------------- huellas
-def huella(semilla, k=1.0):
+def _ruido_suave(rnd, w, h, celda):
+    gw, gh = w // celda + 3, h // celda + 3
+    g = [[rnd.uniform(-1, 1) for _ in range(gw)] for _ in range(gh)]
+    def f(x, y):
+        gx, gy = x / celda, y / celda
+        i, j = int(gx), int(gy)
+        tx, ty = gx - i, gy - j
+        tx, ty = tx * tx * (3 - 2 * tx), ty * ty * (3 - 2 * ty)
+        a = g[j][i] * (1 - tx) + g[j][i + 1] * tx
+        b = g[j + 1][i] * (1 - tx) + g[j + 1][i + 1] * tx
+        return a * (1 - ty) + b * ty
+    return f
+
+
+def huella(semilla):
+    """Huella con crestas finas, remolino desplazado y bordes irregulares, como las del juego original."""
     rnd = random.Random(semilla)
-    w, h = 82, 110
+    w, h = 84, 110
     im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
-    cx, cy = w / 2 + rnd.uniform(-6, 6), h * 0.5 + rnd.uniform(-8, 8)
-    ang, freq = rnd.uniform(0, math.pi), rnd.uniform(0.62, 0.78) * k
-    fases = [rnd.uniform(0, 6.28) for _ in range(3)]
+    r1, r2 = _ruido_suave(rnd, w, h, 22), _ruido_suave(rnd, w, h, 9)
+    cx, cy = w / 2 + rnd.uniform(-7, 7), h * 0.46 + rnd.uniform(-8, 8)
+    periodo = rnd.uniform(3.9, 4.6)
+    estiramiento = rnd.uniform(1.05, 1.35)
+    giro = rnd.uniform(-0.5, 0.5)
     for y in range(h):
         for x in range(w):
-            if ((x - w / 2) / (w / 2 - 2)) ** 2 + ((y - h / 2) / (h / 2 - 2)) ** 2 > 1:
+            ex, ey = (x - w / 2) / (w / 2 - 1.5), (y - h / 2) / (h / 2 - 1.5)
+            borde = 1 + 0.07 * r2(x, y)
+            if ex * ex + ey * ey > borde * borde:
                 continue
-            dx, dy = x - cx, (y - cy) * 0.82
+            dx, dy = x - cx, (y - cy) * estiramiento
             r = math.hypot(dx, dy)
-            a = math.atan2(dy, dx) + ang
-            v = math.sin(r * freq + 1.4 * math.sin(a * 2 + fases[0]) + 0.45 * math.sin(r * 0.15 + fases[1]) + 0.9 * (a / 6.28))
-            if v > 0.1 and rnd.random() > 0.035:
-                im.putpixel((x, y), (92 + rnd.randint(-8, 8), 38, 38, 255))
+            ang = math.atan2(dy, dx)
+            fase = r / periodo + 1.7 * r1(x, y) + 0.5 * r2(x, y) + giro * ang / 6.28 * (r / 14) + 0.35 * math.sin(ang * 3) * min(1, r / 18)
+            v = math.cos(fase * 6.28)
+            if v > 0.12 and rnd.random() > 0.025:
+                t = rnd.randint(-10, 10)
+                im.putpixel((x, y), (96 + t, 42 + t // 2, 40 + t // 2, 255))
     return im
 
 
 PERSONAJES = {
-    'minero':          (mundo_minero,  1),
-    'robot_mensajero': (mundo_robot,   2),
-    'alien_tres_ojos': (mundo_alien3,  3),
-    'guardian_cristal': (mundo_guardian, 4),
-    'viajera_naranja': (mundo_viajera, 5),
+    'minero': (minero, 1),
+    'robot_mensajero': (robot, 2),
+    'alien_tres_ojos': (alien3, 3),
+    'guardian_cristal': (guardian, 4),
+    'viajera_naranja': (viajera, 5),
 }
-# Recorte del busto para el carnet: 28 columnas x 34 filas (x5 = 140x170)
-CAJA_CARNET = (18, 0, 46, 34)
+# Recorte del busto para el carnet: 34 columnas x 43 filas, que luego se ajusta a 170 px de alto.
+CAJA_CARNET = (23, 0, 57, 43)
+
+
+def a_altura(im, alto):
+    ancho = max(1, round(im.width * alto / im.height))
+    return im.resize((ancho, alto), Image.NEAREST)
 
 
 def generar(hoja=False):
@@ -271,8 +409,7 @@ def generar(hoja=False):
     for nombre, (fn, semilla) in PERSONAJES.items():
         l = fn()
         cuerpo = l.imagen().resize((W * ESC, H * ESC), Image.NEAREST)
-        carnet = l.imagen(CAJA_CARNET)
-        carnet = carnet.resize((carnet.width * ESC, carnet.height * ESC), Image.NEAREST)
+        carnet = a_altura(l.imagen(CAJA_CARNET), 170)
         huel = huella(semilla * 101)
         cuerpo.save(DESTINO / f'ing_{nombre}.webp', 'WEBP', quality=92, method=6)
         carnet.save(DESTINO / f'foto_carnet_{nombre}.webp', 'WEBP', quality=92, method=6)
