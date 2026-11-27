@@ -153,3 +153,11 @@ La carpeta `docs/` contiene una versión del juego que corre en cualquier navega
 - **Diferencias con la versión Java:** el sonido es sintetizado (no usa el WAV original), el ranking se guarda en el navegador (`localStorage`) en vez de SQLite y el botón de salir no puede cerrar la pestaña.
 - **Probarla en local:** abrir `docs/index.html` o servir la carpeta con `python3 -m http.server --directory docs`.
 - **Publicarla con GitHub Pages:** *Settings → Pages → Build and deployment → Deploy from a branch*, elegir la rama y la carpeta `/docs`.
+
+
+## Cómo agregar personajes nuevos (versión web)
+
+1. Dibujá tres imágenes PNG con fondo transparente: `ing_<id>.png` (cuerpo, 380 px de alto), `foto_carnet_<id>.png` (170 px) y `hue_<id>.png` (huella, 110 px).
+2. Convertilas con `python3 tools/importar_sprites.py <carpeta>`; las deja en `docs/img/` como WebP.
+3. En `docs/index.html`, agregá una línea a `PERFILES`, por ejemplo: `{ aspecto: 'zorro', raza: 'ALIEN', foto: 'carnet_zorro', hue: 'huella_zorro' }`.
+4. Probá abriendo `docs/index.html`: el nuevo personaje aparece en las filas generadas al azar.

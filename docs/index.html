@@ -641,6 +641,9 @@ function crearPlantelInicial() {
 
 
 /* ---- Ingresantes generados: combinan sprites y fotos existentes con datos y defectos al azar ---- */
+/* ARTE NUEVO: para sumar un personaje, subí sus tres imágenes a docs/img/ (ver tools/importar_sprites.py) y agregá una línea acá.
+   aspecto -> ing_<aspecto>.webp   foto -> foto_<foto>.webp   hue -> hue_<hue>.webp   raza: HUMANO | CYBORG | ALIEN | GUARDIANES.
+   Los personajes generados al azar eligen un perfil de esta lista, así que cuantos más haya, más variada es la fila. */
 const PERFILES = [
   { aspecto: 'caballero',   raza: 'HUMANO',     foto: 'carnet_caballero',  hue: 'huella' },
   { aspecto: 'vikingo',     raza: 'HUMANO',     foto: 'carnet_vikingo',    hue: 'huella_1' },
