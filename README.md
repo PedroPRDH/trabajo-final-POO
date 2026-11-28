@@ -153,6 +153,7 @@ La carpeta `docs/` contiene una versión del juego que corre en cualquier navega
 - **Modo campaña (Fase 3, avance):** 5 días seguidos con la reputación arrastrada, menos tiempo y más documentos falsos cada día, mejoras que se compran entre días (reloj extendido, descanso, escudo), noticias de la central según tus errores, logros y un ranking de campaña (top 10) guardados en el navegador.
 - **Eventos especiales:** de vez en cuando llega un emisario VIP con inmunidad diplomática (sin documentos: hay que dejarlo pasar, rechazarlo es un error) o un ingresante con urgencia (la mitad del tiempo y puntos dobles si acertás).
 - **Dificultad:** botón en el menú (Fácil / Normal / Difícil) que cambia el tiempo por ingresante (×1,3 / ×1 / ×0,8) y la cantidad de papeles con defectos. Se recuerda en el navegador.
+- **Accesibilidad y créditos:** botón de alto contraste (se recuerda en el navegador) y pantalla de créditos en el menú.
 - **Diferencias con la versión Java:** el sonido es sintetizado (no usa el WAV original), el ranking se guarda en el navegador (`localStorage`) en vez de SQLite y el botón de salir no puede cerrar la pestaña.
 - **Probarla en local:** abrir `docs/index.html` o servir la carpeta con `python3 -m http.server --directory docs`.
 - **Publicarla con GitHub Pages:** *Settings → Pages → Build and deployment → Deploy from a branch*, elegir la rama y la carpeta `/docs`.

@@ -167,6 +167,7 @@ img { display: block; }
 .fin-titulo.v { color: var(--ok); }
 .fin-titulo.d { color: var(--bad); }
 .link { background: none; border: 0; color: var(--glow); text-decoration: underline; font-size: 20px; padding: 8px 0; cursor: pointer; }
+html.contraste { filter: contrast(1.3) brightness(1.08); }
 .camp { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; background: rgba(10, 6, 4, .9); padding: 12px; overflow: auto; }
 .camp-panel { width: min(94vw, 680px); max-height: 94vh; overflow: auto; padding: 20px 24px; background: #241611; color: #f0e4cb; border: 4px solid #6b3a1b; box-shadow: 0 0 0 4px #120906; font-family: var(--f-body); font-size: 22px; line-height: 1.15; }
 .camp-panel h2 { margin: 0 0 12px; font: 16px var(--f-display); color: #f4c52e; text-align: center; line-height: 1.5; }
@@ -240,6 +241,8 @@ html.escritorio body > *:not(#esc):not(script) { display: none !important; }
       <button class="btn" id="btn-campania" type="button">CAMPAÑA (5 DÍAS)</button>
       <button class="btn ghost" id="btn-como" type="button">CÓMO SE JUEGA</button>
       <button class="btn ghost" id="m-dificultad" type="button">DIFICULTAD: NORMAL</button>
+      <button class="btn ghost" id="m-contraste" type="button">ALTO CONTRASTE: NO</button>
+      <button class="btn ghost" id="m-creditos" type="button">CRÉDITOS</button>
       <button class="btn ghost" id="m-sonido" type="button">SONIDO: SÍ</button>
     </div>
     <div class="panel" id="como" hidden>
@@ -968,6 +971,32 @@ function guardarCampania(jugador, puntaje, dias) {
 }
 
 // Pantalla entre días y final de campaña. La usan las dos vistas; "contenedor" es donde se inserta.
+// Accesibilidad: alto contraste (se recuerda en el navegador).
+function aplicarContraste() { document.documentElement.classList.toggle('contraste', leerLS('frontier-contraste', false) === true); }
+function textoContraste() { return 'ALTO CONTRASTE: ' + (leerLS('frontier-contraste', false) === true ? 'SÍ' : 'NO'); }
+function alternarContraste() { guardarLS('frontier-contraste', !(leerLS('frontier-contraste', false) === true)); aplicarContraste(); return textoContraste(); }
+aplicarContraste();
+
+// Pantalla de créditos.
+function mostrarCreditos() {
+  const velo = document.createElement('div'); velo.className = 'camp';
+  const panel = document.createElement('div'); panel.className = 'camp-panel'; velo.appendChild(panel);
+  const el = (tag, clase, texto) => { const e = document.createElement(tag); if (clase) e.className = clase; e.textContent = texto; panel.appendChild(e); return e; };
+  const cerrar = () => { velo.remove(); document.removeEventListener('keydown', tecla); };
+  const tecla = (e) => { if (e.key === 'Escape') cerrar(); };
+  document.addEventListener('keydown', tecla);
+  el('h2', '', 'CRÉDITOS');
+  el('h3', '', 'JUEGO ORIGINAL');
+  el('p', '', 'Frontier, trabajo final de Programación Orientada a Objetos (Java Swing), hecho por sus autores originales.');
+  el('h3', '', 'VERSIÓN WEB');
+  el('p', '', 'Port a navegador (celular y PC), modo campaña, mejoras, logros, eventos especiales, dificultad y personajes nuevos, hechos con permiso de uno de los autores originales.');
+  el('h3', '', 'ARTE Y SONIDO');
+  el('p', '', 'Arte original del proyecto. Los cinco personajes nuevos se generaron por código con el mismo estilo de píxeles. El sonido se sintetiza en el navegador.');
+  const b = el('button', 'camp-btn camp-main', 'VOLVER'); b.type = 'button'; b.onclick = cerrar;
+  velo.addEventListener('click', (e) => { if (e.target === velo) cerrar(); });
+  document.body.appendChild(velo);
+}
+
 function mostrarCampania(contenedor, campania, partida, fin, acciones) {
   const velo = document.createElement('div'); velo.className = 'camp';
   const panel = document.createElement('div'); panel.className = 'camp-panel'; velo.appendChild(panel);
@@ -1321,6 +1350,9 @@ function alternarSonido() { Sonido.alternar(); etiquetaSonido(); if (Sonido.acti
 $('a-sonido').onclick = alternarSonido;
 $('m-sonido').onclick = alternarSonido;
 $('m-dificultad').textContent = textoDificultad();
+$('m-contraste').textContent = textoContraste();
+$('m-contraste').onclick = () => { $('m-contraste').textContent = alternarContraste(); };
+$('m-creditos').onclick = mostrarCreditos;
 $('m-dificultad').onclick = () => { $('m-dificultad').textContent = alternarDificultad(); };
 etiquetaSonido();
 
@@ -1616,6 +1648,12 @@ function iniciarVistaEscritorio() {
   const bDif = h('button', 'bt-campania', rect(0.40, 0.90, 0.20, 0.05), menu, textoDificultad());
   bDif.type = 'button';
   bDif.addEventListener('click', () => { bDif.textContent = alternarDificultad(); });
+  const bCon = h('button', 'bt-campania', rect(0.18, 0.90, 0.20, 0.05), menu, textoContraste());
+  bCon.type = 'button';
+  bCon.addEventListener('click', () => { bCon.textContent = alternarContraste(); });
+  const bCre = h('button', 'bt-campania', rect(0.62, 0.90, 0.20, 0.05), menu, 'CRÉDITOS');
+  bCre.type = 'button';
+  bCre.addEventListener('click', mostrarCreditos);
   botonMusica(menu);
 
   /* ---------- Tutorial ---------- */
