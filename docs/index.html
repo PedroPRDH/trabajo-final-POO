@@ -964,13 +964,15 @@ function alternarDificultad() {
 function textoDificultad() { return 'DIFICULTAD: ' + DIFICULTADES[dificultadActual()].nombre; }
 
 class Campania {
-  static get DIAS() { return 5; }
+  static get DIAS() { return 10; }
   constructor() {
     this.dia = 1; this.reputacion = 10; this.creditos = 0; this.puntajeTotal = 0;
     this.bonoTiempo = 0; this.escudos = 0; this.colados = 0; this.dias = [];
+    // Variables de la historia (las fases siguientes las usan para diálogos y finales).
+    this.lealtad = 0; this.red = 0; this.familia = 3;
   }
-  get segundos() { return Math.max(30, 60 + this.bonoTiempo - 4 * (this.dia - 1)); }
-  get probDefecto() { return Math.min(0.75, 0.4 + 0.05 * (this.dia - 1) + 0.04 * this.colados); }
+  get segundos() { return Math.max(30, 60 + this.bonoTiempo - 3 * (this.dia - 1)); }
+  get probDefecto() { return Math.min(0.75, 0.4 + 0.035 * (this.dia - 1) + 0.03 * this.colados); }
   get ultimoDia() { return this.dia >= Campania.DIAS; }
 
   // Cierra un día ganado: suma puntos, arrastra la reputación (+2 de descanso) y desbloquea logros.
@@ -981,6 +983,9 @@ class Campania {
     this.escudos = partida.escudo;
     this.colados += st.colados;
     this.dias.push({ dia: this.dia, puntaje: st.puntaje, errores: st.errores });
+    // Lealtad a la Central: sube con jornadas limpias y baja con cada ingresante colado.
+    this.lealtad = Math.max(-5, Math.min(20, this.lealtad + (st.errores === 0 ? 2 : st.errores <= 2 ? 1 : 0) - st.colados));
+    guardarLS('frontier-historia', { dia: this.dia, lealtad: this.lealtad, red: this.red, familia: this.familia });
     const ganados = [];
     if (st.errores === 0) ganados.push('dia_perfecto');
     if (st.mejorRacha >= 5) ganados.push('racha_5');
@@ -1004,6 +1009,38 @@ function rankingCampania() { return leerLS('frontier-campania', []).sort((a, b) 
 function guardarCampania(jugador, puntaje, dias) {
   const l = leerLS('frontier-campania', []); l.push({ jugador, puntaje, dias });
   l.sort((a, b) => b.puntaje - a.puntaje); guardarLS('frontier-campania', l.slice(0, 50));
+}
+
+// Comunicados diarios de la Central: el hilo de la historia. Texto corto y siempre salteable.
+const COMUNICADOS = [
+  ['Bienvenido a la Puerta', 'La Central te asigna el puesto de inspector de la frontera. Revisá los papeles, aplicá las reglas del día y decidí quién pasa. El sueldo se paga por jornada cumplida.'],
+  ['Primer informe', 'Hubo quejas por las demoras en la fila. La Central pide agilidad, no descuidos. En la ciudad el alquiler sigue subiendo.'],
+  ['Rumores en la fila', 'Circulan rumores sobre una red que ayuda a cruzar a gente sin papeles. Cualquier irregularidad debe quedar registrada.'],
+  ['Los clanes se mueven', 'Titán Digital y Unión Mágica refuerzan sus delegaciones en el paso. Controlá el clan de origen con especial cuidado.'],
+  ['Atentado en el paso norte', 'Un ataque dejó heridos en el paso norte. La Central endurece los controles y pide máxima atención a las amenazas.'],
+  ['Toque de queda', 'Se reduce el tiempo asignado a cada inspección. Quien deje pasar a alguien sin autorización será investigado.'],
+  ['Visitas inesperadas', 'Delegados de la Central supervisarán la Puerta. Algunos viajeros llegan con inmunidad diplomática: verificá antes de rechazar.'],
+  ['La frontera se cierra', 'La Central anuncia un cierre parcial. Habrá menos viajeros, pero con más papeles en conflicto.'],
+  ['Última advertencia', 'Se evalúa la lealtad de cada inspector. Todo lo que hiciste queda registrado en tu legajo.'],
+  ['Orden final', 'Hoy se decide el futuro de la Puerta. Es tu última jornada como inspector: hacé lo que tengas que hacer.'],
+];
+
+function mostrarComunicadoDia(contenedor, campania, continuar) {
+  const velo = document.createElement('div'); velo.className = 'camp';
+  const panel = document.createElement('div'); panel.className = 'camp-panel'; velo.appendChild(panel);
+  const el = (tag, clase, texto) => { const e = document.createElement(tag); if (clase) e.className = clase; e.textContent = texto; panel.appendChild(e); return e; };
+  const [titulo, texto] = COMUNICADOS[Math.min(campania.dia, COMUNICADOS.length) - 1];
+  const seguir = () => { velo.remove(); document.removeEventListener('keydown', tecla); continuar(); };
+  const tecla = (e) => { if (e.key === 'Escape' || e.key === 'Enter') seguir(); };
+  document.addEventListener('keydown', tecla);
+  el('h2', '', 'COMUNICADO DE LA CENTRAL');
+  el('h3', '', 'Día ' + campania.dia + ' de ' + Campania.DIAS + ' · ' + titulo);
+  el('p', 'camp-noticia', texto);
+  if (campania.dia > 1 && campania.colados > 0) el('p', 'camp-noticia', 'Aviso: la Central registró ' + campania.colados + ' ingreso(s) irregular(es) bajo tu turno. Tu legajo lo anota.');
+  if (campania.dia > 1) el('p', 'camp-linea', 'Lealtad a la Central: ' + campania.lealtad + ' · Reputación: ' + campania.reputacion + '/10 · Créditos: ' + campania.creditos);
+  const b = el('button', 'camp-btn camp-main', 'EMPEZAR LA JORNADA'); b.type = 'button'; b.onclick = seguir;
+  contenedor.appendChild(velo);
+  b.focus();
 }
 
 // Pantalla entre días y final de campaña. La usan las dos vistas; "contenedor" es donde se inserta.
@@ -1417,7 +1454,7 @@ function volverAlMenu() {
 
 /* Acciones del jugador */
 $('btn-jugar').onclick = () => { campania = null; empezar(); };
-$('btn-campania').onclick = () => { campania = new Campania(); empezar(); };
+$('btn-campania').onclick = () => { campania = new Campania(); mostrarComunicadoDia(document.body, campania, empezar); };
 $('btn-como').onclick = () => { const p = $('como'); p.hidden = !p.hidden; Sonido.efecto('clic'); };
 $('a-salir').onclick = volverAlMenu;
 $('f-otra').onclick = () => { show($('m-fin'), false); empezar(); };
@@ -1520,7 +1557,7 @@ $('d-rechazar').onclick = () => decidir(false);
 function finDePartida(fin) {
   if (campania) {
     return mostrarCampania(document.body, campania, partida, fin, {
-      siguiente: () => { campania.dia++; empezar(); },
+      siguiente: () => { campania.dia++; mostrarComunicadoDia(document.body, campania, empezar); },
       menu: volverAlMenu
     });
   }
@@ -1676,7 +1713,7 @@ function iniciarVistaEscritorio() {
   // Botón de campaña: no existe en la imagen original, así que se dibuja con el mismo marco de cobre.
   const bCampania = h('button', 'bt-campania', rect(0.40, 0.825, 0.20, 0.065), menu, 'CAMPAÑA · 5 DÍAS');
   bCampania.type = 'button';
-  bCampania.addEventListener('click', () => { campania = new Campania(); iniciarJuego(); });
+  bCampania.addEventListener('click', () => { campania = new Campania(); mostrarComunicadoDia(raiz, campania, iniciarJuego); });
   // Posiciones en fracción del ancho, para que sigan alineadas con el fondo en cualquier proporción de ventana.
   boton(menu, rect(0.515, 0.68, 0.10, 0.07), 'e_b_tutorial').addEventListener('click', abrirTutorial);
   boton(menu, rect(0.94, 0.02, 0.045, 0.075), 'e_b_cruz').addEventListener('click', () => salir(false));
@@ -1958,7 +1995,7 @@ function iniciarVistaEscritorio() {
       decision.hidden = true; cerrarLibro(); ocultarGlobos(); anuncio.hidden = true;
       if (campania) {
         return mostrarCampania(raiz, campania, partida, resultado, {
-          siguiente: () => { campania.dia++; iniciarJuego(); },
+          siguiente: () => { campania.dia++; mostrarComunicadoDia(raiz, campania, iniciarJuego); },
           menu: volverAlMenu
         });
       }
