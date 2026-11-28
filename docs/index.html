@@ -80,6 +80,38 @@ img { display: block; }
 .panel ol, .panel ul { margin: 0; padding-left: 22px; }
 .panel li { margin: 4px 0; }
 
+/* ---- Pulido estético del celular ---- */
+body { background: radial-gradient(120% 60% at 50% 0%, #2c1b13 0%, var(--wood) 60%) fixed, var(--wood); }
+#menu { min-height: 100dvh; display: flex; flex-direction: column; padding-bottom: 24px; }
+#menu .hero { position: relative; margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))); }
+#menu .hero .banner { border-bottom: 0; aspect-ratio: 1000 / 420; -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
+#menu .hero::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(90% 80% at 50% 30%, transparent 40%, rgba(20, 10, 6, .55)); }
+#menu .titulo { position: absolute; left: 0; right: 0; bottom: -6px; padding: 0; z-index: 1; font-size: clamp(30px, 10vw, 44px); line-height: 1.1;
+  text-shadow: 0 0 18px rgba(94, 211, 230, .55), 3px 3px 0 #0d2a30, -2px -2px 0 #0d2a30, 2px -2px 0 #0d2a30, -2px 2px 0 #0d2a30; }
+#menu .sub { margin: 18px 8px 26px; font-size: 23px; line-height: 1.15; text-wrap: balance; }
+#menu .menu-btns { gap: 16px; }
+#menu #btn-jugar, #menu #btn-campania { min-height: 60px; font-size: 14px; }
+#menu #btn-jugar { background: linear-gradient(#e08a45, #c9783b); }
+#menu #btn-campania { background: linear-gradient(#f0b04a, #d8913a); box-shadow: 0 4px 0 #7d4f1d; }
+.menu-opciones { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.menu-opciones .btn { min-height: 52px; font-size: 9px; line-height: 1.5; padding: 8px 6px; }
+#menu .nota { margin-top: auto !important; padding-top: 28px; }
+
+.hud { margin-top: 10px; padding: 12px 14px; background: linear-gradient(var(--wood-2), #221510); border: 3px solid var(--copper-dk); box-shadow: 0 4px 0 #120906; }
+.escena { box-shadow: 0 4px 0 #120906; }
+.ventanilla { background: radial-gradient(70% 55% at 50% 62%, rgba(94, 211, 230, .16), transparent 70%), linear-gradient(var(--wood-2), var(--wood-3)); }
+.ventanilla::after { content: ""; position: absolute; left: 22%; right: 22%; bottom: 8px; height: 16px; border-radius: 50%; background: radial-gradient(closest-side, rgba(0, 0, 0, .55), transparent); pointer-events: none; }
+.sprite { position: relative; z-index: 1; filter: drop-shadow(0 6px 0 rgba(0, 0, 0, .35)); }
+.dialogo { border-left-width: 8px; box-shadow: 0 4px 0 #120906; }
+.dialogo.ok { box-shadow: 0 4px 0 #120906, 0 0 14px rgba(116, 210, 127, .25); }
+.dialogo.bad { box-shadow: 0 4px 0 #120906, 0 0 14px rgba(234, 95, 80, .25); }
+.mesa h2 { display: flex; align-items: center; gap: 8px; }
+.mesa h2::after { content: ""; flex: 1; height: 3px; background: var(--copper-dk); }
+.desk { box-shadow: inset 0 0 40px rgba(0, 0, 0, .55), 0 4px 0 #120906; }
+.barra { background: linear-gradient(#33211a, var(--wood-2)); box-shadow: 0 -6px 14px rgba(0, 0, 0, .45); }
+.btn.corto { font-size: 17px; letter-spacing: 0; }
+.btn.corto:not(:disabled):not(.ghost) { background: linear-gradient(#e08a45, #c9783b); }
+
 /* HUD */
 .hud { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center; padding: 12px 0; }
 .rep { display: flex; gap: 3px; }
@@ -233,17 +265,21 @@ html.escritorio body > *:not(#esc):not(script) { display: none !important; }
 
   <!-- MENÚ -->
   <section id="menu">
-    <img class="banner" src="img/escena.webp" alt="Puerta fortificada de la frontera, con guardias y una fila de viajeros">
-    <h1 class="titulo">FRONTIER</h1>
+    <div class="hero">
+      <img class="banner" src="img/escena.webp" alt="Puerta fortificada de la frontera, con guardias y una fila de viajeros">
+      <h1 class="titulo">FRONTIER</h1>
+    </div>
     <p class="sub">Sos el inspector de la frontera. Revisá los papeles y decidí quién pasa.</p>
     <div class="menu-btns">
       <button class="btn" id="btn-jugar" type="button">JUGAR</button>
       <button class="btn" id="btn-campania" type="button">CAMPAÑA (5 DÍAS)</button>
       <button class="btn ghost" id="btn-como" type="button">CÓMO SE JUEGA</button>
-      <button class="btn ghost" id="m-dificultad" type="button">DIFICULTAD: NORMAL</button>
-      <button class="btn ghost" id="m-contraste" type="button">ALTO CONTRASTE: NO</button>
-      <button class="btn ghost" id="m-creditos" type="button">CRÉDITOS</button>
-      <button class="btn ghost" id="m-sonido" type="button">SONIDO: SÍ</button>
+      <div class="menu-opciones">
+        <button class="btn ghost" id="m-dificultad" type="button">DIFICULTAD: NORMAL</button>
+        <button class="btn ghost" id="m-sonido" type="button">SONIDO: SÍ</button>
+        <button class="btn ghost" id="m-contraste" type="button">ALTO CONTRASTE: NO</button>
+        <button class="btn ghost" id="m-creditos" type="button">CRÉDITOS</button>
+      </div>
     </div>
     <div class="panel" id="como" hidden>
       <h3>CÓMO SE JUEGA</h3>
