@@ -337,7 +337,7 @@ const PLANTILLA_CLAN = { UNION_MAGICA: 'um', PUERTO_UMBRAL: 'pu', TITAN_DIGITAL:
 
 const NOMBRE_RAZA = { HUMANO: 'Humano', CYBORG: 'Cyborg', ALIEN: 'Alien', GUARDIANES: 'Guardián' };
 const NOMBRE_CLAN = { UNION_MAGICA: 'Unión Mágica', TITAN_DIGITAL: 'Titán Digital', PUERTO_UMBRAL: 'Puerto Umbral' };
-const NOMBRE_TIPO = { CIUDADANO: 'Ciudadano', TURISTA: 'Turista', TRABAJADOR: 'Trabajador' };
+const NOMBRE_TIPO = { CIUDADANO: 'Ciudadano', TURISTA: 'Turista', TRABAJADOR: 'Trabajador', DIPLOMATICO: 'Diplomático' };
 
 /* ---- Documentos: clase abstracta + DNI, Pasaporte, Permiso ---- */
 class Documento {
@@ -411,7 +411,10 @@ class Ingresante {
     Object.assign(this, { nombre, documentos: [...documentos], tipo, raza, clan, ciudad, imagen, motivoVisita });
   }
   // Se presenta (propio de cada subclase) y luego explica el motivo de su visita.
-  responderInterrogatorio() { return this.darPresentacion() + ' ' + this.motivoVisita; }
+  responderInterrogatorio() { return (this.urgente ? '¡Es una emergencia, necesito pasar ya! ' : '') + this.darPresentacion() + ' ' + this.motivoVisita; }
+  // Eventos especiales: un VIP está eximido del control y una urgencia acorta el tiempo (y duplica los puntos).
+  eximidoDeControl() { return false; }
+  get motivoAceptacion() { return 'Todos los datos del ingresante estaban en orden y al día.'; }
   obtenerResumenDocumental() {
     const r = new ResumenDocumental();
     this.documentos.forEach(d => d.aportarEvidencias(r));
@@ -438,6 +441,13 @@ const sorteo = lista => lista[Math.floor(Math.random() * lista.length)];
 class IngresanteRegular extends Ingresante {
   darPresentacion() { return sorteo(SALUDOS); }
   esAmenaza() { return false; }
+}
+class IngresanteVip extends Ingresante {
+  darPresentacion() { return sorteo(['Soy emisario de la central.', 'Traigo credenciales diplomáticas de la capital.', 'Vengo en misión oficial, el comunicado ya les llegó.']); }
+  responderInterrogatorio() { return this.darPresentacion() + ' ' + this.motivoVisita + ' Tengo inmunidad diplomática: no llevo documentos y no es necesario revisarlos.'; }
+  esAmenaza() { return false; }
+  eximidoDeControl() { return true; }
+  get motivoAceptacion() { return 'Era un emisario de la central con inmunidad diplomática: había que dejarlo pasar.'; }
 }
 class Enemigo extends Ingresante {
   constructor(nombre, docs, tipo, raza, clan, ciudad, imagen, motivo, portaBomba) {
@@ -527,7 +537,7 @@ class PoliticaProhibicionRaza {
 class Resolutor {
   constructor() { this.politicas = []; }
   agregar(p) { this.politicas.push(p); }
-  obtenerPoliticaFallida(ingresante) { return this.politicas.find(p => !p.esValido(ingresante)) || null; }
+  obtenerPoliticaFallida(ingresante) { if (ingresante.eximidoDeControl()) return null; return this.politicas.find(p => !p.esValido(ingresante)) || null; }
 }
 
 /* ---- Reglas del día (clase abstracta + 3 variaciones) ---- */
@@ -725,9 +735,12 @@ function crearIngresanteAleatorio(probDefecto = 0.4) {
   if (tipo !== 'CIUDADANO' && !d.faltaPasaporte) docs.push(new Pasaporte(d.nombre[1], d.origen[1], ok, d.ven[1], d.nac[1], d.raza[1], 'hue_' + per.hue + '.webp', clan, 'foto_' + per.foto + '.webp'));
   if (tipo === 'TRABAJADOR' && !d.faltaPermiso) docs.push(new Permiso(d.nombre[2], d.origen[2], ok, d.ven[2], d.nro[1], sorteo(OCUPACIONES), 2000 + (++contadorIngresantes), clan));
   const img = 'ing_' + per.aspecto + '.webp', motivo = sorteo(MOTIVOS[tipo]);
-  return defecto === 'amenaza'
+  if (Math.random() < 0.07) return new IngresanteVip(nombre, [], 'DIPLOMATICO', per.raza, clan, origen, img, 'Vengo a entregar un mensaje oficial.');
+  const ing = defecto === 'amenaza'
     ? new Enemigo(nombre, docs, tipo, per.raza, clan, origen, img, motivo, Math.random() < 0.6)
     : new IngresanteRegular(nombre, docs, tipo, per.raza, clan, origen, img, motivo);
+  ing.urgente = Math.random() < 0.12;
+  return ing;
 }
 
 // La fila mezcla ingresantes hechos a mano con generados; tiene entre 10 y 15 personas.
@@ -794,9 +807,9 @@ class Partida {
   cancelarDecision() { if (this.estado === 'SELLO') this.estado = 'ATENDIENDO'; }
 
   // Racha: cada acierto seguido vale más (100, 200, ... hasta 500); un error corta la racha y resta 50.
-  registrar(acierto, motivo) {
+  registrar(acierto, motivo, doble = false) {
     const st = this.stats;
-    if (acierto) { st.aciertos++; st.racha++; st.mejorRacha = Math.max(st.mejorRacha, st.racha); st.puntaje += 100 * Math.min(st.racha, 5); }
+    if (acierto) { st.aciertos++; st.racha++; st.mejorRacha = Math.max(st.mejorRacha, st.racha); st.puntaje += 100 * Math.min(st.racha, 5) * (doble ? 2 : 1); }
     else { st.errores++; st.racha = 0; st.puntaje = Math.max(0, st.puntaje - 50); st.motivos[motivo] = (st.motivos[motivo] || 0) + 1; }
   }
   errorFrecuente() {
@@ -804,7 +817,7 @@ class Partida {
     return e ? e[0] : null;
   }
   cerrarTurno(acierto, motivo, acepta) {
-    this.registrar(acierto, motivo);
+    this.registrar(acierto, motivo, !!(this.actual && this.actual.urgente));
     if (!acierto && acepta === true) this.stats.colados++;
     // El escudo de la central devuelve la reputación que costó el error.
     let escudoUsado = false;
@@ -835,10 +848,12 @@ class Partida {
     const puedeIngresar = fallida === null;
     const acierto = this.gestor.evaluarDecision(acepta, puedeIngresar);
     let motivo = '';
-    if (!acierto) motivo = acepta ? fallida.motivoRechazo : 'Todos los datos del ingresante estaban en orden y al día.';
+    if (!acierto) motivo = acepta ? fallida.motivoRechazo : this.actual.motivoAceptacion;
     return this.cerrarTurno(acierto, motivo, acepta);
   }
   // Si se acaba el tiempo con alguien en la ventanilla, el ingresante se retira y cuenta como error.
+  // Tiempo para el ingresante en ventanilla: la mitad (mínimo 20 s) si es una urgencia.
+  segundosActual() { return this.actual && this.actual.urgente ? Math.max(20, Math.floor(this.segundos / 2)) : this.segundos; }
   agotarTiempo() {
     if (!this.actual || !['INTERROGATORIO', 'DOCUMENTOS', 'ATENDIENDO', 'SELLO'].includes(this.estado)) return null;
     this.gestor.penalizar();
@@ -1325,7 +1340,7 @@ $('a-ordenar').onclick = ordenarMesa;
 function arrancarTiempo() {
   const t = $('tiempo'), barra = $('tbar');
   show(t, true);
-  Cronometro.iniciar(partida.segundos, (seg, frac) => {
+  Cronometro.iniciar(partida.segundosActual(), (seg, frac) => {
     barra.style.width = (frac * 100) + '%';
     barra.className = frac < 0.2 ? 'poco' : frac < 0.5 ? 'medio' : '';
     $('tseg').textContent = Math.ceil(seg) + ' s';
@@ -1635,7 +1650,7 @@ function iniciarVistaEscritorio() {
   }
   function arrancarTiempo() {
     panelTiempo.hidden = false; actualizarPuntaje();
-    Cronometro.iniciar(partida.segundos, (seg, frac) => {
+    Cronometro.iniciar(partida.segundosActual(), (seg, frac) => {
       tbar.style.width = (frac * 100) + '%';
       tbar.className = frac < 0.2 ? 'poco' : frac < 0.5 ? 'medio' : '';
       tSeg.textContent = Math.ceil(seg) + ' s';
