@@ -937,8 +937,11 @@ const LOGROS = {
 const MEJORAS = [
   { id: 'tiempo', nombre: 'Reloj extendido', desc: '+8 s por ingresante en los días que vienen.', costo: 2000, aplicar: c => { c.bonoTiempo += 8; } },
   { id: 'reputacion', nombre: 'Descanso en la garita', desc: 'Recuperás 3 puntos de reputación.', costo: 1500, aplicar: c => { c.reputacion = Math.min(10, c.reputacion + 3); } },
-  { id: 'escudo', nombre: 'Escudo de la central', desc: 'Tu próximo error no te cuesta reputación.', costo: 2500, aplicar: c => { c.escudos++; } }
+  { id: 'escudo', nombre: 'Escudo de la central', desc: 'Tu próximo error no te cuesta reputación.', costo: 2500, aplicar: c => { c.escudos++; } },
+  { id: 'familia', nombre: 'Cuidar a la familia', desc: 'Medicinas, ropa y una buena comida: +1 estado de la familia.', costo: 900,
+    disponible: c => c.familia < 3, aplicar: c => { c.familia = Math.min(3, c.familia + 1); } }
 ];
+const ESTADOS_FAMILIA = ['perdida', 'en apuros graves', 'con apuros', 'bien'];
 const _memoriaLS = {};
 function leerLS(clave, defecto) {
   try { const v = localStorage.getItem(clave); return v ? JSON.parse(v) : defecto; } catch (e) { return clave in _memoriaLS ? _memoriaLS[clave] : defecto; }
@@ -969,8 +972,10 @@ class Campania {
     this.dia = 1; this.reputacion = 10; this.creditos = 0; this.puntajeTotal = 0;
     this.bonoTiempo = 0; this.escudos = 0; this.colados = 0; this.dias = [];
     // Variables de la historia (las fases siguientes las usan para diálogos y finales).
-    this.lealtad = 0; this.red = 0; this.familia = 3;
+    this.lealtad = 0; this.red = 0; this.familia = 3; this.fracaso = null; this.balance = null;
   }
+  get alquiler() { return 700 + 100 * Math.floor((this.dia - 1) / 3); }
+  get comida() { return 500; }
   get segundos() { return Math.max(30, 60 + this.bonoTiempo - 3 * (this.dia - 1)); }
   get probDefecto() { return Math.min(0.75, 0.4 + 0.035 * (this.dia - 1) + 0.03 * this.colados); }
   get ultimoDia() { return this.dia >= Campania.DIAS; }
@@ -985,6 +990,7 @@ class Campania {
     this.dias.push({ dia: this.dia, puntaje: st.puntaje, errores: st.errores });
     // Lealtad a la Central: sube con jornadas limpias y baja con cada ingresante colado.
     this.lealtad = Math.max(-5, Math.min(20, this.lealtad + (st.errores === 0 ? 2 : st.errores <= 2 ? 1 : 0) - st.colados));
+    this.balance = this.ultimoDia ? null : this._pagarGastos(st.puntaje);
     guardarLS('frontier-historia', { dia: this.dia, lealtad: this.lealtad, red: this.red, familia: this.familia });
     const ganados = [];
     if (st.errores === 0) ganados.push('dia_perfecto');
@@ -992,9 +998,26 @@ class Campania {
     if (st.escudoUsado) ganados.push('escudo');
     return ganados;
   }
+  // Gastos de la casa al cerrar la jornada: alquiler, comida y, si la familia está mal, medicinas.
+  // Lo que no se llega a pagar cuesta salud de la familia; si llega a 0, la campaña termina.
+  _pagarGastos(ingreso) {
+    const lineas = [], antes = this.familia;
+    const gastos = [['Alquiler', this.alquiler], ['Comida', this.comida]];
+    if (this.familia <= 1) gastos.push(['Medicinas', 600]);
+    let faltas = 0;
+    for (const [nombre, monto] of gastos) {
+      const pago = Math.min(monto, this.creditos);
+      this.creditos -= pago;
+      if (pago < monto) faltas++;
+      lineas.push({ nombre, monto, pagado: pago });
+    }
+    if (faltas) this.familia = Math.max(0, this.familia - 1);
+    if (this.familia <= 0) this.fracaso = 'familia';
+    return { ingreso, lineas, faltas, familiaAntes: antes, familia: this.familia };
+  }
   comprar(id) {
     const m = MEJORAS.find(x => x.id === id);
-    if (!m || this.creditos < m.costo) return false;
+    if (!m || this.creditos < m.costo || (m.disponible && !m.disponible(this))) return false;
     this.creditos -= m.costo; m.aplicar(this); return true;
   }
 }
@@ -1037,7 +1060,8 @@ function mostrarComunicadoDia(contenedor, campania, continuar) {
   el('h3', '', 'Día ' + campania.dia + ' de ' + Campania.DIAS + ' · ' + titulo);
   el('p', 'camp-noticia', texto);
   if (campania.dia > 1 && campania.colados > 0) el('p', 'camp-noticia', 'Aviso: la Central registró ' + campania.colados + ' ingreso(s) irregular(es) bajo tu turno. Tu legajo lo anota.');
-  if (campania.dia > 1) el('p', 'camp-linea', 'Lealtad a la Central: ' + campania.lealtad + ' · Reputación: ' + campania.reputacion + '/10 · Créditos: ' + campania.creditos);
+  if (campania.dia > 1) el('p', 'camp-linea', 'Lealtad: ' + campania.lealtad + ' · Reputación: ' + campania.reputacion + '/10 · Créditos: ' + campania.creditos + ' · Familia: ' + ESTADOS_FAMILIA[campania.familia]);
+  el('p', 'camp-stats', 'Gastos de hoy: alquiler ' + campania.alquiler + ' y comida ' + campania.comida + '.');
   const b = el('button', 'camp-btn camp-main', 'EMPEZAR LA JORNADA'); b.type = 'button'; b.onclick = seguir;
   contenedor.appendChild(velo);
   b.focus();
@@ -1079,10 +1103,11 @@ function mostrarCampania(contenedor, campania, partida, fin, acciones) {
   let ganados = [];
   if (victoria) ganados = campania.cerrarDia(partida);
   const completa = victoria && campania.ultimoDia;
+  const termina = completa || (victoria && !!campania.fracaso);
   if (completa) ganados.push('campania');
   const nuevos = desbloquearLogros(ganados);
 
-  if (victoria && !completa) {
+  if (victoria && !termina) {
     el('h2', null, 'DÍA ' + campania.dia + ' DE ' + Campania.DIAS + ' COMPLETADO');
     el('p', 'camp-stats', resumenStats(partida));
     const noticia = campania.colados > 0
@@ -1090,13 +1115,22 @@ function mostrarCampania(contenedor, campania, partida, fin, acciones) {
       : 'Noticias de la central: la frontera está tranquila. Mañana la fila será más exigente.';
     el('p', 'camp-noticia', noticia);
     el('p', 'camp-linea', 'Reputación: ' + campania.reputacion + '/10 · Créditos: ' + campania.creditos + ' · Tiempo por ingresante mañana: ' + campania.segundos + ' s');
+    const bl = campania.balance;
+    if (bl) {
+      el('h3', null, 'BALANCE DE LA JORNADA');
+      el('p', 'camp-stats', 'Ingresos: +' + bl.ingreso);
+      bl.lineas.forEach(l => el('p', 'camp-stats', l.nombre + ': -' + l.monto + (l.pagado < l.monto ? ' (pagaste ' + l.pagado + ')' : '')));
+      el('p', bl.faltas ? 'camp-noticia' : 'camp-stats', bl.faltas
+        ? 'No alcanzó para todo: tu familia está ' + ESTADOS_FAMILIA[bl.familia] + '.'
+        : 'Tu familia está ' + ESTADOS_FAMILIA[bl.familia] + '.');
+    }
     el('h3', null, 'MEJORAS');
     const lista = el('div', 'camp-mejoras');
     const refrescar = () => {
       lista.textContent = '';
       MEJORAS.forEach(m => {
         const b = el('button', 'camp-btn', m.nombre + ' — ' + m.costo, lista); b.type = 'button';
-        b.title = m.desc; b.disabled = campania.creditos < m.costo;
+        b.title = m.desc; b.disabled = campania.creditos < m.costo || !!(m.disponible && !m.disponible(campania));
         el('span', 'camp-desc', m.desc, b);
         b.addEventListener('click', () => { if (campania.comprar(m.id)) { Sonido.efecto('clic'); refrescar(); resumen.textContent = 'Reputación: ' + campania.reputacion + '/10 · Créditos: ' + campania.creditos + ' · Tiempo por ingresante mañana: ' + campania.segundos + ' s'; } });
       });
@@ -1105,7 +1139,7 @@ function mostrarCampania(contenedor, campania, partida, fin, acciones) {
     refrescar();
   } else {
     el('h2', null, completa ? '¡CAMPAÑA COMPLETADA!' : 'CAMPAÑA TERMINADA');
-    el('p', 'camp-noticia', completa ? 'Cumpliste los ' + Campania.DIAS + ' días al frente de la frontera.' : 'Tu reputación llegó a 0 el día ' + campania.dia + ' de ' + Campania.DIAS + '.');
+    el('p', 'camp-noticia', completa ? 'Cumpliste los ' + Campania.DIAS + ' días al frente de la frontera.' : campania.fracaso === 'familia' ? 'Tu familia ya no pudo sostenerse en la ciudad y se fue. Sin ellos, el puesto perdió sentido.' : 'Tu reputación llegó a 0 el día ' + campania.dia + ' de ' + Campania.DIAS + '.');
     if (victoria) { /* el último día ya se sumó en cerrarDia */ } else campania.puntajeTotal += partida.stats.puntaje;
     el('p', 'camp-stats', 'Puntaje total de la campaña: ' + campania.puntajeTotal + ' · Días completados: ' + (victoria ? campania.dia : campania.dia - 1));
   }
@@ -1113,7 +1147,7 @@ function mostrarCampania(contenedor, campania, partida, fin, acciones) {
     el('h3', null, 'LOGROS NUEVOS');
     nuevos.forEach(i => el('p', 'camp-logro', '★ ' + LOGROS[i][0] + ': ' + LOGROS[i][1]));
   }
-  if (victoria && !completa) {
+  if (victoria && !termina) {
     const sig = el('button', 'camp-btn camp-main', 'DÍA ' + (campania.dia + 1) + ' →'); sig.type = 'button';
     sig.addEventListener('click', () => { cerrar(); acciones.siguiente(); });
   } else {
